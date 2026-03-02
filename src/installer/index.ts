@@ -4,7 +4,7 @@
  * Registers/unregisters the plugin in Claude Code's plugin marketplace system:
  *   - ~/.claude/plugins/known_marketplaces.json
  *   - ~/.claude/plugins/installed_plugins.json
- *   - ~/.claude/plugins/cache/mannyyang/claude-pg-mem/<version>/
+ *   - ~/.claude/plugins/cache/DataToRag/claude-pg-mem/<version>/
  *   - ~/.claude/settings.json (enabledPlugins)
  */
 
@@ -20,11 +20,11 @@ import {
 } from '../shared/paths.js';
 
 const PLUGINS_DIR = join(CLAUDE_CONFIG_DIR, 'plugins');
-const MARKETPLACE_DIR = join(PLUGINS_DIR, 'marketplaces', 'mannyyang');
+const MARKETPLACE_DIR = join(PLUGINS_DIR, 'marketplaces', 'DataToRag');
 const KNOWN_MARKETPLACES_PATH = join(PLUGINS_DIR, 'known_marketplaces.json');
 const INSTALLED_PLUGINS_PATH = join(PLUGINS_DIR, 'installed_plugins.json');
 
-const PLUGIN_ID = 'claude-pg-mem@mannyyang';
+const PLUGIN_ID = 'claude-pg-mem@DataToRag';
 
 function ensureDir(dirPath: string): void {
   if (!existsSync(dirPath)) {
@@ -95,7 +95,7 @@ function findPluginSource(): string {
 export async function install(): Promise<void> {
   const version = getPluginVersion();
   const pluginSource = findPluginSource();
-  const pluginCachePath = join(PLUGINS_DIR, 'cache', 'mannyyang', 'claude-pg-mem', version);
+  const pluginCachePath = join(PLUGINS_DIR, 'cache', 'DataToRag', 'claude-pg-mem', version);
   const now = new Date().toISOString();
 
   console.log(`Installing claude-pg-mem v${version} as Claude Code plugin...\n`);
@@ -129,10 +129,10 @@ export async function install(): Promise<void> {
   // 3. Register marketplace
   console.log('  Registering marketplace...');
   const knownMarketplaces = readJson(KNOWN_MARKETPLACES_PATH);
-  knownMarketplaces['mannyyang'] = {
+  knownMarketplaces['DataToRag'] = {
     source: {
       source: 'github',
-      repo: 'mannyyang/claude-pg-mem',
+      repo: 'DataToRag/claude-pg-mem',
     },
     installLocation: MARKETPLACE_DIR,
     lastUpdated: now,
@@ -208,8 +208,8 @@ export async function uninstall(): Promise<void> {
 
   // 3. Remove from known_marketplaces.json
   const knownMarketplaces = readJson(KNOWN_MARKETPLACES_PATH);
-  if (knownMarketplaces['mannyyang']) {
-    delete knownMarketplaces['mannyyang'];
+  if (knownMarketplaces['DataToRag']) {
+    delete knownMarketplaces['DataToRag'];
     writeJson(KNOWN_MARKETPLACES_PATH, knownMarketplaces);
     console.log('  Removed marketplace registration');
   }
@@ -221,7 +221,7 @@ export async function uninstall(): Promise<void> {
   }
 
   // 5. Remove cache directory
-  const cacheDir = join(PLUGINS_DIR, 'cache', 'mannyyang');
+  const cacheDir = join(PLUGINS_DIR, 'cache', 'DataToRag');
   if (existsSync(cacheDir)) {
     rmSync(cacheDir, { recursive: true });
     console.log('  Removed cache directory');

@@ -14,7 +14,7 @@ Postgres-native persistent memory for Claude Code. Automatically captures tool u
 
 ```bash
 # Clone the repo
-git clone https://github.com/mannyyang/claude-pg-mem.git
+git clone https://github.com/DataToRag/claude-pg-mem.git
 cd claude-pg-mem
 
 # Install dependencies and build the plugin

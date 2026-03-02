@@ -21,7 +21,7 @@ function isPluginDisabled() {
     const settingsPath = join(configDir, 'settings.json');
     if (!existsSync(settingsPath)) return false;
     const settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
-    return settings?.enabledPlugins?.['claude-pg-mem@mannyyang'] === false;
+    return settings?.enabledPlugins?.['claude-pg-mem@DataToRag'] === false;
   } catch {
     return false;
   }
@@ -51,7 +51,7 @@ function resolveRoot() {
   }
 
   // Fallback
-  return join(homedir(), '.claude', 'plugins', 'marketplaces', 'mannyyang', 'plugin');
+  return join(homedir(), '.claude', 'plugins', 'marketplaces', 'DataToRag', 'plugin');
 }
 
 try {

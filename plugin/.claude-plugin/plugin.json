@@ -5,7 +5,7 @@
   "author": {
     "name": "Manny Yang"
   },
-  "repository": "https://github.com/mannyyang/claude-pg-mem",
+  "repository": "https://github.com/DataToRag/claude-pg-mem",
   "license": "MIT",
   "keywords": [
     "memory",
