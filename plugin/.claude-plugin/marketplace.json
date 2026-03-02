@@ -1,0 +1,18 @@
+{
+  "name": "DataToRag",
+  "owner": {
+    "name": "Manny Yang"
+  },
+  "metadata": {
+    "description": "Postgres-native persistent memory for Claude Code",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "claude-pg-mem",
+      "source": "./",
+      "description": "Postgres-native persistent memory for Claude Code - shared across instances and machines via Neon Postgres + pgvector",
+      "version": "0.1.0"
+    }
+  ]
+}

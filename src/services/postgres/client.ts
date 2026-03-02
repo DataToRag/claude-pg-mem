@@ -20,7 +20,7 @@ let _db: Database | null = null;
  * Resolve DATABASE_URL from environment or settings file.
  * Priority: DATABASE_URL env > CLAUDE_PG_MEM_DATABASE_URL env > settings.json
  */
-function resolveDatabaseUrl(): string | undefined {
+export function resolveDatabaseUrl(): string | undefined {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
   if (process.env.CLAUDE_PG_MEM_DATABASE_URL) return process.env.CLAUDE_PG_MEM_DATABASE_URL;
 

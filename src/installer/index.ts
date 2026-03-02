@@ -109,14 +109,13 @@ export async function install(): Promise<void> {
     process.exit(1);
   }
 
-  // 1. Copy to marketplace directory
-  console.log(`  Copying to marketplace: ${MARKETPLACE_DIR}/plugin/`);
-  ensureDir(MARKETPLACE_DIR);
-  const marketplacePlugin = join(MARKETPLACE_DIR, 'plugin');
-  if (existsSync(marketplacePlugin)) {
-    rmSync(marketplacePlugin, { recursive: true });
+  // 1. Copy to marketplace directory (plugin contents go directly in the marketplace root)
+  console.log(`  Copying to marketplace: ${MARKETPLACE_DIR}/`);
+  if (existsSync(MARKETPLACE_DIR)) {
+    rmSync(MARKETPLACE_DIR, { recursive: true });
   }
-  cpSync(pluginSource, marketplacePlugin, { recursive: true });
+  ensureDir(dirname(MARKETPLACE_DIR));
+  cpSync(pluginSource, MARKETPLACE_DIR, { recursive: true });
 
   // 2. Copy to cache directory
   console.log(`  Copying to cache: ${pluginCachePath}`);
@@ -166,19 +165,8 @@ export async function install(): Promise<void> {
   // 6. Ensure data directory exists
   ensureAllDataDirs();
 
-  console.log(`
-Installation complete! (v${version})
-
-Next steps:
-  1. Set your database connection in ~/.claude-pg-mem/settings.json:
-     { "CLAUDE_PG_MEM_DATABASE_URL": "postgres://user:pass@host/dbname" }
-
-     Or set the DATABASE_URL environment variable.
-
-  2. Restart Claude Code to activate the plugin.
-
-The plugin will auto-install native dependencies on first session start.
-`);
+  console.log(`\nInstallation complete! (v${version})\n`);
+  console.log('Restart Claude Code to activate the plugin.');
 }
 
 /**

@@ -1,6 +1,9 @@
 /**
  * Drizzle ORM schema for Postgres — ported from claude-mem's SQLite migrations.
  *
+ * All tables use the `cpm_` prefix (claude-pg-mem) to avoid clashing
+ * with existing tables in shared databases.
+ *
  * Conversion rules applied:
  *   INTEGER PRIMARY KEY AUTOINCREMENT  → serial('id').primaryKey()
  *   TEXT NOT NULL                      → text('...').notNull()
@@ -37,10 +40,10 @@ const tsvector = customType<{ data: string }>({
 });
 
 // ============================================================================
-// sessions (migration 001)
+// cpm_sessions
 // ============================================================================
 export const sessions = pgTable(
-  'sessions',
+  'cpm_sessions',
   {
     id: serial('id').primaryKey(),
     session_id: text('session_id').unique().notNull(),
@@ -55,17 +58,17 @@ export const sessions = pgTable(
     metadata_json: text('metadata_json'),
   },
   (t) => [
-    index('idx_sessions_project').on(t.project),
-    index('idx_sessions_created_at').on(t.created_at_epoch),
-    index('idx_sessions_project_created').on(t.project, t.created_at_epoch),
+    index('idx_cpm_sessions_project').on(t.project),
+    index('idx_cpm_sessions_created_at').on(t.created_at_epoch),
+    index('idx_cpm_sessions_project_created').on(t.project, t.created_at_epoch),
   ],
 );
 
 // ============================================================================
-// memories (migration 001 + 002 hierarchical fields)
+// cpm_memories
 // ============================================================================
 export const memories = pgTable(
-  'memories',
+  'cpm_memories',
   {
     id: serial('id').primaryKey(),
     session_id: text('session_id')
@@ -79,30 +82,29 @@ export const memories = pgTable(
     project: text('project').notNull(),
     archive_basename: text('archive_basename'),
     origin: text('origin').notNull().default('transcript'),
-    // Hierarchical memory fields (migration 002)
     title: text('title'),
     subtitle: text('subtitle'),
-    facts: text('facts'), // JSON array of fact strings
-    concepts: text('concepts'), // JSON array of concept strings
-    files_touched: text('files_touched'), // JSON array of file paths
+    facts: text('facts'),
+    concepts: text('concepts'),
+    files_touched: text('files_touched'),
   },
   (t) => [
-    index('idx_memories_session').on(t.session_id),
-    index('idx_memories_project').on(t.project),
-    index('idx_memories_created_at').on(t.created_at_epoch),
-    index('idx_memories_project_created').on(t.project, t.created_at_epoch),
-    index('idx_memories_document_id').on(t.document_id),
-    index('idx_memories_origin').on(t.origin),
-    index('idx_memories_title').on(t.title),
-    index('idx_memories_concepts').on(t.concepts),
+    index('idx_cpm_memories_session').on(t.session_id),
+    index('idx_cpm_memories_project').on(t.project),
+    index('idx_cpm_memories_created_at').on(t.created_at_epoch),
+    index('idx_cpm_memories_project_created').on(t.project, t.created_at_epoch),
+    index('idx_cpm_memories_document_id').on(t.document_id),
+    index('idx_cpm_memories_origin').on(t.origin),
+    index('idx_cpm_memories_title').on(t.title),
+    index('idx_cpm_memories_concepts').on(t.concepts),
   ],
 );
 
 // ============================================================================
-// overviews (migration 001)
+// cpm_overviews
 // ============================================================================
 export const overviews = pgTable(
-  'overviews',
+  'cpm_overviews',
   {
     id: serial('id').primaryKey(),
     session_id: text('session_id')
@@ -115,19 +117,18 @@ export const overviews = pgTable(
     origin: text('origin').notNull().default('claude'),
   },
   (t) => [
-    index('idx_overviews_session').on(t.session_id),
-    index('idx_overviews_project').on(t.project),
-    index('idx_overviews_created_at').on(t.created_at_epoch),
-    index('idx_overviews_project_created').on(t.project, t.created_at_epoch),
-    uniqueIndex('idx_overviews_project_latest').on(t.project, t.created_at_epoch),
+    index('idx_cpm_overviews_session').on(t.session_id),
+    index('idx_cpm_overviews_project').on(t.project),
+    index('idx_cpm_overviews_created_at').on(t.created_at_epoch),
+    uniqueIndex('idx_cpm_overviews_project_latest').on(t.project, t.created_at_epoch),
   ],
 );
 
 // ============================================================================
-// diagnostics (migration 001)
+// cpm_diagnostics
 // ============================================================================
 export const diagnostics = pgTable(
-  'diagnostics',
+  'cpm_diagnostics',
   {
     id: serial('id').primaryKey(),
     session_id: text('session_id').references(() => sessions.session_id, {
@@ -141,18 +142,18 @@ export const diagnostics = pgTable(
     origin: text('origin').notNull().default('system'),
   },
   (t) => [
-    index('idx_diagnostics_session').on(t.session_id),
-    index('idx_diagnostics_project').on(t.project),
-    index('idx_diagnostics_severity').on(t.severity),
-    index('idx_diagnostics_created').on(t.created_at_epoch),
+    index('idx_cpm_diagnostics_session').on(t.session_id),
+    index('idx_cpm_diagnostics_project').on(t.project),
+    index('idx_cpm_diagnostics_severity').on(t.severity),
+    index('idx_cpm_diagnostics_created').on(t.created_at_epoch),
   ],
 );
 
 // ============================================================================
-// transcript_events (migration 001)
+// cpm_transcript_events
 // ============================================================================
 export const transcriptEvents = pgTable(
-  'transcript_events',
+  'cpm_transcript_events',
   {
     id: serial('id').primaryKey(),
     session_id: text('session_id')
@@ -166,20 +167,19 @@ export const transcriptEvents = pgTable(
     captured_at_epoch: bigint('captured_at_epoch', { mode: 'number' }).notNull(),
   },
   (t) => [
-    uniqueIndex('idx_transcript_events_unique').on(t.session_id, t.event_index),
-    index('idx_transcript_events_session').on(t.session_id, t.event_index),
-    index('idx_transcript_events_project').on(t.project),
-    index('idx_transcript_events_type').on(t.event_type),
-    index('idx_transcript_events_captured').on(t.captured_at_epoch),
+    uniqueIndex('idx_cpm_transcript_events_unique').on(t.session_id, t.event_index),
+    index('idx_cpm_transcript_events_session').on(t.session_id, t.event_index),
+    index('idx_cpm_transcript_events_project').on(t.project),
+    index('idx_cpm_transcript_events_type').on(t.event_type),
+    index('idx_cpm_transcript_events_captured').on(t.captured_at_epoch),
   ],
 );
 
 // ============================================================================
-// sdk_sessions (migration 004 + worker_port from 005 + prompt_counter from 006
-//               + custom_title from 023)
+// cpm_sdk_sessions
 // ============================================================================
 export const sdkSessions = pgTable(
-  'sdk_sessions',
+  'cpm_sdk_sessions',
   {
     id: serial('id').primaryKey(),
     content_session_id: text('content_session_id').unique().notNull(),
@@ -193,34 +193,24 @@ export const sdkSessions = pgTable(
     status: text('status', { enum: ['active', 'completed', 'failed'] })
       .notNull()
       .default('active'),
-    // migration 005 — worker port
     worker_port: integer('worker_port'),
-    // migration 006 — prompt counter
     prompt_counter: integer('prompt_counter').default(0),
-    // migration 023 — custom title
     custom_title: text('custom_title'),
   },
   (t) => [
-    index('idx_sdk_sessions_claude_id').on(t.content_session_id),
-    index('idx_sdk_sessions_sdk_id').on(t.memory_session_id),
-    index('idx_sdk_sessions_project').on(t.project),
-    index('idx_sdk_sessions_status').on(t.status),
-    index('idx_sdk_sessions_started').on(t.started_at_epoch),
+    index('idx_cpm_sdk_sessions_claude_id').on(t.content_session_id),
+    index('idx_cpm_sdk_sessions_sdk_id').on(t.memory_session_id),
+    index('idx_cpm_sdk_sessions_project').on(t.project),
+    index('idx_cpm_sdk_sessions_status').on(t.status),
+    index('idx_cpm_sdk_sessions_started').on(t.started_at_epoch),
   ],
 );
 
 // ============================================================================
-// observations (migration 004 + hierarchical fields 008 + nullable text 009
-//               + prompt_number 006 + discovery_tokens 007/011
-//               + content_hash 022)
-//
-// Postgres additions:
-//   - embedding vector(768) for semantic search
-//   - search_vector tsvector (generated) + GIN index for full-text search
-//   - HNSW index on embedding with cosine ops
+// cpm_observations (with pgvector)
 // ============================================================================
 export const observations = pgTable(
-  'observations',
+  'cpm_observations',
   {
     id: serial('id').primaryKey(),
     memory_session_id: text('memory_session_id')
@@ -230,56 +220,42 @@ export const observations = pgTable(
         onUpdate: 'cascade',
       }),
     project: text('project').notNull(),
-    text: text('text'), // nullable since migration 009
+    text: text('text'),
     type: text('type').notNull(),
-    // Hierarchical fields (migration 008)
     title: text('title'),
     subtitle: text('subtitle'),
-    facts: text('facts'), // JSON array
+    facts: text('facts'),
     narrative: text('narrative'),
-    concepts: text('concepts'), // JSON array
-    files_read: text('files_read'), // JSON array
-    files_modified: text('files_modified'), // JSON array
-    // Prompt tracking (migration 006)
+    concepts: text('concepts'),
+    files_read: text('files_read'),
+    files_modified: text('files_modified'),
     prompt_number: integer('prompt_number'),
-    // ROI metrics (migration 007/011)
     discovery_tokens: integer('discovery_tokens').default(0),
-    // Deduplication (migration 022)
     content_hash: text('content_hash'),
     created_at: text('created_at').notNull(),
     created_at_epoch: bigint('created_at_epoch', { mode: 'number' }).notNull(),
-
-    // --- Postgres-specific columns ---
     embedding: vector('embedding', { dimensions: 768 }),
     search_vector: tsvector('search_vector'),
   },
   (t) => [
-    index('idx_observations_sdk_session').on(t.memory_session_id),
-    index('idx_observations_project').on(t.project),
-    index('idx_observations_type').on(t.type),
-    index('idx_observations_created').on(t.created_at_epoch),
-    index('idx_observations_content_hash').on(t.content_hash, t.created_at_epoch),
-    // HNSW index for vector similarity search (cosine distance)
-    index('idx_observations_embedding').using(
+    index('idx_cpm_observations_sdk_session').on(t.memory_session_id),
+    index('idx_cpm_observations_project').on(t.project),
+    index('idx_cpm_observations_type').on(t.type),
+    index('idx_cpm_observations_created').on(t.created_at_epoch),
+    index('idx_cpm_observations_content_hash').on(t.content_hash, t.created_at_epoch),
+    index('idx_cpm_observations_embedding').using(
       'hnsw',
       t.embedding.op('vector_cosine_ops'),
     ),
-    // GIN index for full-text search
-    index('idx_observations_search_vector').using('gin', t.search_vector),
+    index('idx_cpm_observations_search_vector').using('gin', t.search_vector),
   ],
 );
 
 // ============================================================================
-// session_summaries (migration 004, UNIQUE removed in 007, prompt_number in 006,
-//                    discovery_tokens in 007/011)
-//
-// Postgres additions:
-//   - embedding vector(768) for semantic search
-//   - search_vector tsvector (generated) + GIN index for full-text search
-//   - HNSW index on embedding with cosine ops
+// cpm_session_summaries (with pgvector)
 // ============================================================================
 export const sessionSummaries = pgTable(
-  'session_summaries',
+  'cpm_session_summaries',
   {
     id: serial('id').primaryKey(),
     memory_session_id: text('memory_session_id')
@@ -294,39 +270,33 @@ export const sessionSummaries = pgTable(
     learned: text('learned'),
     completed: text('completed'),
     next_steps: text('next_steps'),
-    files_read: text('files_read'), // JSON array
-    files_edited: text('files_edited'), // JSON array
+    files_read: text('files_read'),
+    files_edited: text('files_edited'),
     notes: text('notes'),
-    // Prompt tracking (migration 006)
     prompt_number: integer('prompt_number'),
-    // ROI metrics (migration 007/011)
     discovery_tokens: integer('discovery_tokens').default(0),
     created_at: text('created_at').notNull(),
     created_at_epoch: bigint('created_at_epoch', { mode: 'number' }).notNull(),
-
-    // --- Postgres-specific columns ---
     embedding: vector('embedding', { dimensions: 768 }),
     search_vector: tsvector('search_vector'),
   },
   (t) => [
-    index('idx_session_summaries_sdk_session').on(t.memory_session_id),
-    index('idx_session_summaries_project').on(t.project),
-    index('idx_session_summaries_created').on(t.created_at_epoch),
-    // HNSW index for vector similarity search (cosine distance)
-    index('idx_session_summaries_embedding').using(
+    index('idx_cpm_session_summaries_sdk_session').on(t.memory_session_id),
+    index('idx_cpm_session_summaries_project').on(t.project),
+    index('idx_cpm_session_summaries_created').on(t.created_at_epoch),
+    index('idx_cpm_session_summaries_embedding').using(
       'hnsw',
       t.embedding.op('vector_cosine_ops'),
     ),
-    // GIN index for full-text search
-    index('idx_session_summaries_search_vector').using('gin', t.search_vector),
+    index('idx_cpm_session_summaries_search_vector').using('gin', t.search_vector),
   ],
 );
 
 // ============================================================================
-// pending_messages (migration 016 + failed_at_epoch from 020)
+// cpm_pending_messages
 // ============================================================================
 export const pendingMessages = pgTable(
-  'pending_messages',
+  'cpm_pending_messages',
   {
     id: serial('id').primaryKey(),
     session_db_id: integer('session_db_id')
@@ -354,21 +324,20 @@ export const pendingMessages = pgTable(
       mode: 'number',
     }),
     completed_at_epoch: bigint('completed_at_epoch', { mode: 'number' }),
-    // migration 020
     failed_at_epoch: bigint('failed_at_epoch', { mode: 'number' }),
   },
   (t) => [
-    index('idx_pending_messages_session').on(t.session_db_id),
-    index('idx_pending_messages_status').on(t.status),
-    index('idx_pending_messages_claude_session').on(t.content_session_id),
+    index('idx_cpm_pending_messages_session').on(t.session_db_id),
+    index('idx_cpm_pending_messages_status').on(t.status),
+    index('idx_cpm_pending_messages_claude_session').on(t.content_session_id),
   ],
 );
 
 // ============================================================================
-// user_prompts (migration 010)
+// cpm_user_prompts
 // ============================================================================
 export const userPrompts = pgTable(
-  'user_prompts',
+  'cpm_user_prompts',
   {
     id: serial('id').primaryKey(),
     content_session_id: text('content_session_id')
@@ -380,17 +349,17 @@ export const userPrompts = pgTable(
     created_at_epoch: bigint('created_at_epoch', { mode: 'number' }).notNull(),
   },
   (t) => [
-    index('idx_user_prompts_claude_session').on(t.content_session_id),
-    index('idx_user_prompts_created').on(t.created_at_epoch),
-    index('idx_user_prompts_prompt_number').on(t.prompt_number),
-    index('idx_user_prompts_lookup').on(t.content_session_id, t.prompt_number),
+    index('idx_cpm_user_prompts_claude_session').on(t.content_session_id),
+    index('idx_cpm_user_prompts_created').on(t.created_at_epoch),
+    index('idx_cpm_user_prompts_prompt_number').on(t.prompt_number),
+    index('idx_cpm_user_prompts_lookup').on(t.content_session_id, t.prompt_number),
   ],
 );
 
 // ============================================================================
-// schema_versions (migration tracking)
+// cpm_schema_versions
 // ============================================================================
-export const schemaVersions = pgTable('schema_versions', {
+export const schemaVersions = pgTable('cpm_schema_versions', {
   id: serial('id').primaryKey(),
   version: integer('version').unique().notNull(),
   applied_at: text('applied_at').notNull(),

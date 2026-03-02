@@ -34,6 +34,21 @@ Worker Service (Express on localhost:37778)
       └── tsvector full-text search (GIN index)
 ```
 
+## CLI
+
+The `claude-pg-mem` CLI handles all setup, configuration, and database operations:
+
+```bash
+claude-pg-mem config set <key> <value>   # Set config (shorthand keys supported)
+claude-pg-mem config get <key>           # Get config value
+claude-pg-mem config list                # List all settings with source
+claude-pg-mem db push                    # Create/update cpm_* tables
+claude-pg-mem db status                  # Check connection and row counts
+claude-pg-mem install                    # Register as Claude Code plugin
+claude-pg-mem uninstall                  # Remove plugin registration
+claude-pg-mem start/stop/restart/status  # Worker lifecycle
+```
+
 ## Plugin Structure
 
 ```
@@ -55,6 +70,8 @@ plugin/
 
 ### DB Layer: Neon Postgres + Drizzle ORM
 - Schema in `src/services/postgres/schema.ts`
+- All tables use `cpm_` prefix (e.g., `cpm_sessions`, `cpm_observations`) to avoid clashing with existing tables
+- Schema push via `src/services/postgres/schema-push.ts` (raw SQL, no drizzle-kit dependency at runtime)
 - Drizzle ORM for type-safe queries, NOT raw SQL
 - `bigint` for epoch timestamps
 - `jsonb` for structured data (facts, concepts, files arrays)
@@ -90,7 +107,7 @@ plugin/
 
 ## File Structure Conventions
 
-- `src/services/postgres/` — All database operations (Drizzle queries)
+- `src/services/postgres/` — All database operations (Drizzle queries), schema definition, schema push
 - `src/services/worker/` — Observer agent, search orchestrator, response processing
 - `src/services/context/` — Context generation pipeline (query → compile → render → markdown)
 - `src/services/server/` — Express HTTP routes
@@ -111,8 +128,11 @@ plugin/
 export async function storeObservation(db: Database, input: ObservationInput, embedding?: number[]) { ... }
 ```
 
+### Table names use `cpm_` prefix
+All Postgres tables are prefixed with `cpm_` to avoid conflicts in shared databases. The Drizzle schema JS variable names remain unprefixed (e.g., `sessions`, `observations`), but the underlying SQL table names are `cpm_sessions`, `cpm_observations`, etc.
+
 ### Settings use CLAUDE_PG_MEM_* prefix
-All env vars and settings keys use `CLAUDE_PG_MEM_` prefix.
+All env vars and settings keys use `CLAUDE_PG_MEM_` prefix. The CLI supports shorthand (e.g., `DATABASE_URL` resolves to `CLAUDE_PG_MEM_DATABASE_URL`).
 Data directory: `~/.claude-pg-mem`.
 Default worker port: 37778.
 
@@ -122,23 +142,25 @@ Default worker port: 37778.
 - Hook lifecycle order — Setup → SessionStart → UserPromptSubmit → PostToolUse → Stop
 - Claim-confirm queue pattern — enqueue → claimNextMessage → confirmProcessed
 - Progressive disclosure tool pattern — search → timeline → get_observations
+- Table name prefix `cpm_` — changing would break existing deployments
 
 ## Testing
 
 - `pnpm run lint` — Type check (must pass with zero errors)
 - `pnpm run build:plugin` — Build plugin bundles
-- `pnpm run db:push` — Apply schema to Neon
-- `pnpm run worker:start` — Start worker service
-- `node scripts/install.js` — Install as Claude Code plugin
+- `claude-pg-mem db push` — Apply schema to Neon
+- `claude-pg-mem db status` — Verify database connection and tables
+- `claude-pg-mem start` — Start worker service
+- `claude-pg-mem install` — Install as Claude Code plugin
 - Test by starting a Claude Code session with the plugin installed
 
 ## Environment Variables
 
 Required:
-- `DATABASE_URL` — Neon Postgres connection string
+- `CLAUDE_PG_MEM_DATABASE_URL` — Neon Postgres connection string (or set via `claude-pg-mem config set DATABASE_URL`)
 
 Optional:
 - `CLAUDE_PG_MEM_WORKER_PORT` — Worker port (default: 37778)
 - `CLAUDE_PG_MEM_DATA_DIR` — Data directory (default: ~/.claude-pg-mem)
-- `CLAUDE_PG_MEM_LOG_LEVEL` — Log level (default: info)
+- `CLAUDE_PG_MEM_LOG_LEVEL` — Log level (default: INFO)
 - `CLAUDE_PG_MEM_MAX_CONCURRENT_AGENTS` — Max observer agents (default: 2)

@@ -10,43 +10,66 @@ Postgres-native persistent memory for Claude Code. Automatically captures tool u
 - A [Neon](https://neon.tech) Postgres database (free tier works)
 - Claude Code installed
 
-### Install as Claude Code Plugin
+### Install
 
 ```bash
 # Clone the repo
 git clone https://github.com/DataToRag/claude-pg-mem.git
 cd claude-pg-mem
 
-# Install dependencies and build the plugin
+# Install dependencies and build
 pnpm install
 pnpm run build:plugin
 
-# Register as a Claude Code plugin
-node scripts/install.js
+# Link the CLI globally
+pnpm link --global
 ```
 
-### Configure
-
-Set your Neon database URL in `~/.claude-pg-mem/settings.json`:
-
-```json
-{
-  "CLAUDE_PG_MEM_DATABASE_URL": "postgres://user:pass@your-neon-host/neon"
-}
-```
-
-Or set the `DATABASE_URL` environment variable.
-
-### Push Database Schema
+### Setup
 
 ```bash
-export DATABASE_URL="postgres://user:pass@your-neon-host/neon"
-pnpm run db:push
+# Configure your Neon database URL
+claude-pg-mem config set DATABASE_URL "postgres://user:pass@your-neon-host/neon"
+
+# Push the schema (creates cpm_* tables)
+claude-pg-mem db push
+
+# Register as a Claude Code plugin
+claude-pg-mem install
 ```
 
-### Restart Claude Code
-
 Restart Claude Code to activate the plugin. Hooks and MCP tools will be available automatically. Native dependencies (embeddings model) are auto-installed on first session start.
+
+## CLI
+
+```
+claude-pg-mem <command>
+```
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `config set <key> <value>` | Set a configuration value |
+| `config get <key>` | Get a configuration value |
+| `config list` | List all configuration values |
+| `config reset` | Reset all settings to defaults |
+| `db push` | Create/update tables and indexes |
+| `db status` | Check connection and show table counts |
+| `install` | Register as Claude Code plugin |
+| `uninstall` | Remove Claude Code plugin |
+| `start` | Start the worker service |
+| `stop` | Stop the worker service |
+| `restart` | Restart the worker service |
+| `status` | Show worker status |
+
+Config keys can use shorthand (omit `CLAUDE_PG_MEM_` prefix):
+
+```bash
+claude-pg-mem config set DATABASE_URL "postgres://..."
+claude-pg-mem config set WORKER_PORT 37778
+claude-pg-mem config set LOG_LEVEL DEBUG
+```
 
 ## How It Works
 
@@ -100,7 +123,7 @@ Claude Code connects to claude-pg-mem via MCP for on-demand memory search using 
 
 ## Configuration
 
-Settings are stored in `~/.claude-pg-mem/settings.json` (auto-created on first run).
+Settings are stored in `~/.claude-pg-mem/settings.json`. Manage via CLI or edit directly.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
@@ -113,7 +136,18 @@ Settings are stored in `~/.claude-pg-mem/settings.json` (auto-created on first r
 | `CLAUDE_PG_MEM_CONTEXT_OBSERVATIONS` | `50` | Max observations in context injection |
 | `CLAUDE_PG_MEM_PROVIDER` | `claude` | AI provider: claude, gemini, openrouter |
 
-Environment variables override settings.json values.
+Priority: environment variables > settings.json > defaults.
+
+## Database
+
+Uses Neon Postgres with the pgvector extension for semantic search. All tables use the `cpm_` prefix to avoid clashing with existing tables.
+
+Tables: `cpm_sessions`, `cpm_sdk_sessions`, `cpm_observations`, `cpm_session_summaries`, `cpm_pending_messages`, `cpm_user_prompts`, `cpm_memories`, `cpm_overviews`, `cpm_diagnostics`, `cpm_transcript_events`, `cpm_schema_versions`
+
+```bash
+claude-pg-mem db push      # Create/update tables
+claude-pg-mem db status    # Check connection and row counts
+```
 
 ## Plugin Structure
 
@@ -147,25 +181,13 @@ plugin/
 | Stop | summarize | Generate progress summary for the session |
 | Stop | session-complete | Mark session as completed |
 
-## Database
-
-Uses Neon Postgres with the pgvector extension for semantic search. Schema is managed by Drizzle ORM.
-
-Tables: `sessions`, `observations`, `summaries`, `prompts`, `pending_messages`
-
-```bash
-# Push schema to database
-export DATABASE_URL="postgres://..."
-pnpm run db:push
-```
-
 ## Uninstall
 
 ```bash
-node scripts/install.js --remove
+claude-pg-mem uninstall
 ```
 
-This removes the plugin registration from Claude Code. Your data in `~/.claude-pg-mem/` is preserved.
+This removes the plugin registration from Claude Code. Your data in `~/.claude-pg-mem/` and database tables are preserved.
 
 ## Development
 
@@ -175,7 +197,6 @@ pnpm run build           # Compile TypeScript
 pnpm run build:plugin    # Bundle plugin .cjs files
 pnpm run dev             # Watch mode
 pnpm run worker:dev      # Start worker with hot reload
-pnpm run db:push         # Push schema to database
 pnpm run lint            # Type check
 ```
 
