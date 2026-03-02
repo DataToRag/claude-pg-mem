@@ -1,0 +1,20 @@
+{
+  "name": "claude-pg-mem",
+  "version": "0.1.0",
+  "description": "Postgres-native persistent memory for Claude Code - shared across instances and machines via Neon Postgres + pgvector",
+  "author": {
+    "name": "Manny Yang"
+  },
+  "repository": "https://github.com/mannyyang/claude-pg-mem",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "context",
+    "persistence",
+    "hooks",
+    "mcp",
+    "postgres",
+    "pgvector",
+    "neon"
+  ]
+}

@@ -1,59 +1,84 @@
-# claude-pg-memory
+# claude-pg-mem
 
-Postgres-native persistent memory for Claude Code. Automatically captures tool usage observations, generates semantic summaries, and makes them searchable across sessions and machines. Built on PostgreSQL with pgvector for semantic search, replacing SQLite/ChromaDB with a single shared database that works across instances.
+Postgres-native persistent memory for Claude Code. Automatically captures tool usage observations, generates semantic summaries, and makes them searchable across sessions and machines. Built on PostgreSQL with pgvector for semantic search, installed as a Claude Code plugin.
 
 ## Quick Start
 
+### Prerequisites
+
+- Node.js >= 22
+- A [Neon](https://neon.tech) Postgres database (free tier works)
+- Claude Code installed
+
+### Install as Claude Code Plugin
+
 ```bash
-# Install
-pnpm install claude-pg-memory
+# Clone the repo
+git clone https://github.com/mannyyang/claude-pg-mem.git
+cd claude-pg-mem
 
-# Configure
-export DATABASE_URL="postgres://user:pass@host:5432/dbname"
-export OPENAI_API_KEY="sk-..."
+# Install dependencies and build the plugin
+pnpm install
+pnpm run build:plugin
 
-# Register hooks with Claude Code
-npx claude-pg-memory install
-
-# Run database migrations
-npx claude-pg-memory db:push
-
-# Start the worker service
-npx claude-pg-memory start
-
-# Restart Claude Code to activate hooks
+# Register as a Claude Code plugin
+node scripts/install.js
 ```
 
-## Architecture
+### Configure
+
+Set your Neon database URL in `~/.claude-pg-mem/settings.json`:
+
+```json
+{
+  "CLAUDE_PG_MEM_DATABASE_URL": "postgres://user:pass@your-neon-host/neon"
+}
+```
+
+Or set the `DATABASE_URL` environment variable.
+
+### Push Database Schema
+
+```bash
+export DATABASE_URL="postgres://user:pass@your-neon-host/neon"
+pnpm run db:push
+```
+
+### Restart Claude Code
+
+Restart Claude Code to activate the plugin. Hooks and MCP tools will be available automatically. Native dependencies (embeddings model) are auto-installed on first session start.
+
+## How It Works
 
 ```
 Claude Code Session
     |
-    |-- [SessionStart]    --> context hook     --> Inject memory context
-    |-- [UserPromptSubmit]--> session-init     --> Register session
-    |-- [PostToolUse]     --> observation hook  --> Queue tool observation
-    |-- [Stop]            --> summarize hook    --> Generate summary
-    |                     --> session-complete  --> Close session
+    |-- [Setup]           --> smart-install  --> Auto-install native deps
+    |-- [SessionStart]    --> context hook   --> Inject memory context
+    |-- [UserPromptSubmit]--> session-init   --> Register session
+    |-- [PostToolUse]     --> observation    --> Queue tool observation
+    |-- [Stop]            --> summarize      --> Generate summary
+    |                     --> session-complete --> Close session
     |
     v
 Worker Service (HTTP API on :37778)
     |
     |-- Express HTTP endpoints
     |-- Claude Agent SDK (observation processing)
-    |-- Postgres (sessions, observations, summaries)
+    |-- Neon Postgres (sessions, observations, summaries)
     |-- pgvector (semantic search embeddings)
     |
     v
 MCP Server (stdio, spawned by Claude Code)
     |
-    |-- search         (compact index, ~50-100 tokens/result)
-    |-- timeline       (chronological context)
+    |-- search           (compact index, ~50-100 tokens/result)
+    |-- timeline         (chronological context)
     |-- get_observations (full details by ID)
 ```
 
 ## MCP Tools
 
-Claude Code connects to claude-pg-memory via MCP for on-demand memory search using a token-efficient 3-layer progressive disclosure pattern:
+Claude Code connects to claude-pg-mem via MCP for on-demand memory search using a token-efficient 3-layer progressive disclosure pattern:
 
 | Tool | Purpose | Tokens/result |
 |------|---------|---------------|
@@ -61,7 +86,7 @@ Claude Code connects to claude-pg-memory via MCP for on-demand memory search usi
 | `timeline` | Chronological context around results | ~200-500 |
 | `get_observations` | Full observation details by ID | ~500-1000 |
 
-**Workflow:** `search` to get IDs, then `timeline` for context, then `get_observations` for details. This provides roughly 10x token savings compared to fetching full details upfront.
+**Workflow:** `search` to get IDs, then `timeline` for context, then `get_observations` for details. Roughly 10x token savings compared to fetching full details upfront.
 
 ### Search Parameters
 
@@ -75,48 +100,48 @@ Claude Code connects to claude-pg-memory via MCP for on-demand memory search usi
 
 ## Configuration
 
-Settings are stored in `~/.claude-pg-memory/settings.json` (auto-created on first run).
+Settings are stored in `~/.claude-pg-mem/settings.json` (auto-created on first run).
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `CLAUDE_PG_MEMORY_DATABASE_URL` | (required) | Postgres connection string |
-| `CLAUDE_PG_MEMORY_WORKER_PORT` | `37778` | Worker HTTP API port |
-| `CLAUDE_PG_MEMORY_WORKER_HOST` | `127.0.0.1` | Worker bind address |
-| `CLAUDE_PG_MEMORY_MODEL` | `claude-sonnet-4-5` | Model for observation processing |
-| `CLAUDE_PG_MEMORY_MODE` | `code` | Active mode (defines observation types) |
-| `CLAUDE_PG_MEMORY_LOG_LEVEL` | `INFO` | Log level: DEBUG, INFO, WARN, ERROR |
-| `CLAUDE_PG_MEMORY_CONTEXT_OBSERVATIONS` | `50` | Max observations in context injection |
-| `CLAUDE_PG_MEMORY_PROVIDER` | `claude` | AI provider: claude, gemini, openrouter |
+| `CLAUDE_PG_MEM_DATABASE_URL` | (required) | Neon Postgres connection string |
+| `CLAUDE_PG_MEM_WORKER_PORT` | `37778` | Worker HTTP API port |
+| `CLAUDE_PG_MEM_WORKER_HOST` | `127.0.0.1` | Worker bind address |
+| `CLAUDE_PG_MEM_MODEL` | `claude-sonnet-4-5` | Model for observation processing |
+| `CLAUDE_PG_MEM_MODE` | `code` | Active mode (defines observation types) |
+| `CLAUDE_PG_MEM_LOG_LEVEL` | `INFO` | Log level: DEBUG, INFO, WARN, ERROR |
+| `CLAUDE_PG_MEM_CONTEXT_OBSERVATIONS` | `50` | Max observations in context injection |
+| `CLAUDE_PG_MEM_PROVIDER` | `claude` | AI provider: claude, gemini, openrouter |
 
 Environment variables override settings.json values.
 
-### AI Providers
+## Plugin Structure
 
-| Provider | Auth | Setting |
-|----------|------|---------|
-| Claude (default) | CLI subscription or API key | `CLAUDE_PG_MEMORY_CLAUDE_AUTH_METHOD` |
-| Gemini | API key | `CLAUDE_PG_MEMORY_GEMINI_API_KEY` |
-| OpenRouter | API key | `CLAUDE_PG_MEMORY_OPENROUTER_API_KEY` |
-
-Credentials are stored in `~/.claude-pg-memory/.env` to isolate them from project-level environment files.
-
-## CLI Commands
-
-```bash
-npx claude-pg-memory install    # Register hooks with Claude Code
-npx claude-pg-memory uninstall  # Remove hooks from Claude Code
-npx claude-pg-memory start      # Start the worker service
-npx claude-pg-memory stop       # Stop the worker service
-npx claude-pg-memory restart    # Restart the worker service
-npx claude-pg-memory status     # Show worker status
-npx claude-pg-memory mcp        # Start MCP server (stdio)
+```
+plugin/
+  .claude-plugin/
+    plugin.json          # Plugin manifest
+    CLAUDE.md            # Context injected into Claude sessions
+  .mcp.json              # MCP server registration
+  hooks/
+    hooks.json           # Hook definitions (Setup, SessionStart, etc.)
+  scripts/
+    worker-service.cjs   # Bundled worker + CLI (esbuild)
+    mcp-server.cjs       # Bundled MCP server (esbuild)
+    smart-install.js     # Auto-installs native deps on first run
+  modes/
+    code.json            # Observation type definitions
+  package.json           # Native runtime dependencies
 ```
 
 ## Lifecycle Hooks
 
 | Event | Hook | What it does |
 |-------|------|-------------|
-| SessionStart | context | Inject recent observations and summaries into session |
+| Setup | smart-install | Auto-install native dependencies |
+| SessionStart | smart-install | Ensure deps are current |
+| SessionStart | start | Start worker service |
+| SessionStart | context | Inject recent observations into session |
 | UserPromptSubmit | session-init | Register or resume a memory session |
 | PostToolUse | observation | Queue tool execution for observation processing |
 | Stop | summarize | Generate progress summary for the session |
@@ -124,13 +149,34 @@ npx claude-pg-memory mcp        # Start MCP server (stdio)
 
 ## Database
 
-Uses PostgreSQL with the pgvector extension for semantic search. Schema is managed by Drizzle ORM.
+Uses Neon Postgres with the pgvector extension for semantic search. Schema is managed by Drizzle ORM.
 
 Tables: `sessions`, `observations`, `summaries`, `prompts`, `pending_messages`
 
-Run migrations with:
 ```bash
-npx claude-pg-memory db:push
+# Push schema to database
+export DATABASE_URL="postgres://..."
+pnpm run db:push
+```
+
+## Uninstall
+
+```bash
+node scripts/install.js --remove
+```
+
+This removes the plugin registration from Claude Code. Your data in `~/.claude-pg-mem/` is preserved.
+
+## Development
+
+```bash
+pnpm install
+pnpm run build           # Compile TypeScript
+pnpm run build:plugin    # Bundle plugin .cjs files
+pnpm run dev             # Watch mode
+pnpm run worker:dev      # Start worker with hot reload
+pnpm run db:push         # Push schema to database
+pnpm run lint            # Type check
 ```
 
 ## Contributing
@@ -140,17 +186,6 @@ npx claude-pg-memory db:push
 3. Make your changes
 4. Run `pnpm run lint` to check types
 5. Submit a Pull Request
-
-## Development
-
-```bash
-pnpm install
-pnpm run build          # Compile TypeScript
-pnpm run dev            # Watch mode
-pnpm run worker:dev     # Start worker with hot reload
-pnpm run db:push        # Push schema to database
-pnpm run db:generate    # Generate migration files
-```
 
 ## License
 

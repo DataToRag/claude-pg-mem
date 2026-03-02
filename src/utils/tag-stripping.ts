@@ -2,7 +2,7 @@
  * Tag Stripping Utilities
  *
  * Implements the dual-tag system for meta-observation control:
- * 1. <claude-pg-memory-context> - System-level tag for auto-injected observations
+ * 1. <claude-pg-mem-context> - System-level tag for auto-injected observations
  *    (prevents recursive storage when context injection is active)
  * 2. <private> - User-level tag for manual privacy control
  *    (allows users to mark content they don't want persisted)
@@ -26,7 +26,7 @@ const MAX_TAG_COUNT = 100;
  */
 function countTags(content: string): number {
   const privateCount = (content.match(/<private>/g) || []).length;
-  const contextCount = (content.match(/<claude-pg-memory-context>/g) || []).length;
+  const contextCount = (content.match(/<claude-pg-mem-context>/g) || []).length;
   return privateCount + contextCount;
 }
 
@@ -47,7 +47,7 @@ function stripTagsInternal(content: string): string {
   }
 
   return content
-    .replace(/<claude-pg-memory-context>[\s\S]*?<\/claude-pg-memory-context>/g, '')
+    .replace(/<claude-pg-mem-context>[\s\S]*?<\/claude-pg-mem-context>/g, '')
     .replace(/<private>[\s\S]*?<\/private>/g, '')
     .trim();
 }

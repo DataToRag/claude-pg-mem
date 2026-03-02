@@ -1,8 +1,8 @@
 /**
- * EnvManager - Centralized environment variable management for claude-pg-memory
+ * EnvManager - Centralized environment variable management for claude-pg-mem
  *
- * Provides isolated credential storage in ~/.claude-pg-memory/.env
- * This ensures claude-pg-memory uses its own configured credentials,
+ * Provides isolated credential storage in ~/.claude-pg-mem/.env
+ * This ensures claude-pg-mem uses its own configured credentials,
  * not random ANTHROPIC_API_KEY values from project .env files.
  */
 
@@ -11,8 +11,8 @@ import { join, dirname } from 'path';
 import { homedir } from 'os';
 import { logger } from '../utils/logger.js';
 
-// Path to claude-pg-memory's centralized .env file
-const DATA_DIR = join(homedir(), '.claude-pg-memory');
+// Path to claude-pg-mem's centralized .env file
+const DATA_DIR = join(homedir(), '.claude-pg-mem');
 export const ENV_FILE_PATH = join(DATA_DIR, '.env');
 
 // Environment variables to STRIP from subprocess environment (blocklist approach)
@@ -27,7 +27,7 @@ const BLOCKED_ENV_VARS = [
   'CLAUDECODE',         // Prevent "cannot be launched inside another Claude Code session" error
 ];
 
-// Credential keys that claude-pg-memory manages
+// Credential keys that claude-pg-mem manages
 export const MANAGED_CREDENTIAL_KEYS = [
   'ANTHROPIC_API_KEY',
   'GEMINI_API_KEY',
@@ -79,9 +79,9 @@ function parseEnvFile(content: string): Record<string, string> {
  */
 function serializeEnvFile(env: Record<string, string>): string {
   const lines: string[] = [
-    '# claude-pg-memory credentials',
-    '# This file stores API keys for claude-pg-memory memory agent',
-    '# Edit this file or use claude-pg-memory settings to configure',
+    '# claude-pg-mem credentials',
+    '# This file stores API keys for claude-pg-mem memory agent',
+    '# Edit this file or use claude-pg-mem settings to configure',
     '',
   ];
 
@@ -97,7 +97,7 @@ function serializeEnvFile(env: Record<string, string>): string {
 }
 
 /**
- * Load credentials from ~/.claude-pg-memory/.env
+ * Load credentials from ~/.claude-pg-mem/.env
  * Returns empty object if file doesn't exist (means use CLI billing)
  */
 export function loadClaudePgMemoryEnv(): ClaudePgMemoryEnv {
@@ -123,7 +123,7 @@ export function loadClaudePgMemoryEnv(): ClaudePgMemoryEnv {
 }
 
 /**
- * Save credentials to ~/.claude-pg-memory/.env
+ * Save credentials to ~/.claude-pg-mem/.env
  */
 export function saveClaudePgMemoryEnv(env: ClaudePgMemoryEnv): void {
   try {
@@ -181,11 +181,11 @@ export function saveClaudePgMemoryEnv(env: ClaudePgMemoryEnv): void {
  * - ANTHROPIC_BASE_URL (custom proxy endpoints)
  * - Platform-specific vars (USERPROFILE, XDG_*, etc.)
  *
- * If claude-pg-memory has an explicit ANTHROPIC_API_KEY in ~/.claude-pg-memory/.env,
+ * If claude-pg-mem has an explicit ANTHROPIC_API_KEY in ~/.claude-pg-mem/.env,
  * it's re-injected after stripping, so the managed credential takes precedence
  * over any ambient value.
  *
- * @param includeCredentials - Whether to include API keys from ~/.claude-pg-memory/.env (default: true)
+ * @param includeCredentials - Whether to include API keys from ~/.claude-pg-mem/.env (default: true)
  */
 export function buildIsolatedEnv(includeCredentials: boolean = true): Record<string, string> {
   // 1. Start with full process environment
@@ -199,17 +199,17 @@ export function buildIsolatedEnv(includeCredentials: boolean = true): Record<str
   // 2. Override SDK entrypoint marker
   isolatedEnv.CLAUDE_CODE_ENTRYPOINT = 'sdk-ts';
 
-  // 3. Re-inject managed credentials from claude-pg-memory's .env file
+  // 3. Re-inject managed credentials from claude-pg-mem's .env file
   if (includeCredentials) {
     const credentials = loadClaudePgMemoryEnv();
 
-    // Only add ANTHROPIC_API_KEY if explicitly configured in claude-pg-memory
+    // Only add ANTHROPIC_API_KEY if explicitly configured in claude-pg-mem
     // If not configured, CLI billing will be used (via ANTHROPIC_AUTH_TOKEN passthrough)
     if (credentials.ANTHROPIC_API_KEY) {
       isolatedEnv.ANTHROPIC_API_KEY = credentials.ANTHROPIC_API_KEY;
     }
     // Note: GEMINI_API_KEY and OPENROUTER_API_KEY pass through from process.env,
-    // but claude-pg-memory's .env takes precedence if configured
+    // but claude-pg-mem's .env takes precedence if configured
     if (credentials.GEMINI_API_KEY) {
       isolatedEnv.GEMINI_API_KEY = credentials.GEMINI_API_KEY;
     }
@@ -230,7 +230,7 @@ export function buildIsolatedEnv(includeCredentials: boolean = true): Record<str
 }
 
 /**
- * Get a specific credential from claude-pg-memory's .env
+ * Get a specific credential from claude-pg-mem's .env
  * Returns undefined if not set (which means use default/CLI billing)
  */
 export function getCredential(key: keyof ClaudePgMemoryEnv): string | undefined {
@@ -239,7 +239,7 @@ export function getCredential(key: keyof ClaudePgMemoryEnv): string | undefined 
 }
 
 /**
- * Set a specific credential in claude-pg-memory's .env
+ * Set a specific credential in claude-pg-mem's .env
  * Pass empty string to remove the credential
  */
 export function setCredential(key: keyof ClaudePgMemoryEnv, value: string): void {
@@ -249,7 +249,7 @@ export function setCredential(key: keyof ClaudePgMemoryEnv, value: string): void
 }
 
 /**
- * Check if claude-pg-memory has an Anthropic API key configured
+ * Check if claude-pg-mem has an Anthropic API key configured
  * If false, it means CLI billing should be used
  */
 export function hasAnthropicApiKey(): boolean {
@@ -262,7 +262,7 @@ export function hasAnthropicApiKey(): boolean {
  */
 export function getAuthMethodDescription(): string {
   if (hasAnthropicApiKey()) {
-    return 'API key (from ~/.claude-pg-memory/.env)';
+    return 'API key (from ~/.claude-pg-mem/.env)';
   }
   if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
     return 'Claude Code OAuth token (from parent process)';

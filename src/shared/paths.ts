@@ -1,8 +1,8 @@
 /**
- * Path Configuration for claude-pg-memory
+ * Path Configuration for claude-pg-mem
  * Standard paths based on Claude Code conventions
  *
- * Ported from claude-mem — changed default data dir from ~/.claude-mem to ~/.claude-pg-memory
+ * Ported from claude-mem — changed default data dir from ~/.claude-mem to ~/.claude-pg-mem
  */
 
 import { join, dirname, basename } from 'path';
@@ -25,8 +25,8 @@ function getDirname(): string {
 const _dirname = getDirname();
 
 // Base directories
-export const DATA_DIR = process.env.CLAUDE_PG_MEMORY_DATA_DIR || join(homedir(), '.claude-pg-memory');
-// Note: CLAUDE_CONFIG_DIR is a Claude Code setting, not claude-pg-memory, so leave as env var
+export const DATA_DIR = process.env.CLAUDE_PG_MEM_DATA_DIR || join(homedir(), '.claude-pg-mem');
+// Note: CLAUDE_CONFIG_DIR is a Claude Code setting, not claude-pg-mem, so leave as env var
 export const CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
 
 // Data subdirectories
@@ -100,10 +100,14 @@ export function getCurrentProjectName(): string {
 /**
  * Find package root directory
  *
- * Works because bundled hooks are in plugin/scripts/,
- * so package root is always one level up (the plugin directory)
+ * In plugin context, CLAUDE_PLUGIN_ROOT is set by Claude Code.
+ * In bundled .cjs, __dirname is plugin/scripts/, so parent is plugin/.
+ * In dev (ESM from dist/shared/), go up two levels.
  */
 export function getPackageRoot(): string {
+  if (process.env.CLAUDE_PLUGIN_ROOT) {
+    return process.env.CLAUDE_PLUGIN_ROOT;
+  }
   return join(_dirname, '..');
 }
 

@@ -6,9 +6,9 @@
  *
  * Mode configuration files are loaded from:
  *   1. plugin/modes/<name>.json (bundled defaults)
- *   2. ~/.claude-pg-memory/modes/<name>.json (user overrides)
+ *   2. ~/.claude-pg-mem/modes/<name>.json (user overrides)
  *
- * The active mode is determined by CLAUDE_PG_MEMORY_MODE setting (default: 'code').
+ * The active mode is determined by CLAUDE_PG_MEM_MODE setting (default: 'code').
  */
 
 import { readFileSync, existsSync } from 'fs';
@@ -45,7 +45,7 @@ const modeCache = new Map<string, ModeConfig>();
  * Load a mode configuration by name.
  *
  * Lookup order:
- *   1. User override: ~/.claude-pg-memory/modes/<name>.json
+ *   1. User override: ~/.claude-pg-mem/modes/<name>.json
  *   2. Bundled default: plugin/modes/<name>.json
  *
  * @param name - Mode name (e.g., 'code')
@@ -107,11 +107,11 @@ export function loadMode(name: string): ModeConfig {
  */
 export function getActiveModeName(): string {
   const settingsPath = join(
-    SettingsDefaultsManager.get('CLAUDE_PG_MEMORY_DATA_DIR'),
+    SettingsDefaultsManager.get('CLAUDE_PG_MEM_DATA_DIR'),
     'settings.json',
   );
   const settings = SettingsDefaultsManager.loadFromFile(settingsPath);
-  return settings.CLAUDE_PG_MEMORY_MODE || 'code';
+  return settings.CLAUDE_PG_MEM_MODE || 'code';
 }
 
 /**

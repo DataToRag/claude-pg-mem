@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * claude-pg-memory CLI Entry Point
+ * claude-pg-mem CLI Entry Point
  *
  * Handles all CLI commands:
- *   claude-pg-memory start      - Start the worker service (daemon mode)
- *   claude-pg-memory stop       - Stop the worker
- *   claude-pg-memory restart    - Restart the worker
- *   claude-pg-memory status     - Show worker status
- *   claude-pg-memory install    - Register hooks with Claude Code
- *   claude-pg-memory uninstall  - Remove hooks from Claude Code
- *   claude-pg-memory mcp        - Start MCP server (stdio mode)
- *   claude-pg-memory hook <platform> <event> - Run a hook (called by Claude Code)
+ *   claude-pg-mem start      - Start the worker service (daemon mode)
+ *   claude-pg-mem stop       - Stop the worker
+ *   claude-pg-mem restart    - Restart the worker
+ *   claude-pg-mem status     - Show worker status
+ *   claude-pg-mem install    - Register hooks with Claude Code
+ *   claude-pg-mem uninstall  - Remove hooks from Claude Code
+ *   claude-pg-mem mcp        - Start MCP server (stdio mode)
+ *   claude-pg-mem hook <platform> <event> - Run a hook (called by Claude Code)
  */
 
 import { logger } from './utils/logger.js';
@@ -65,10 +65,10 @@ async function main(): Promise<void> {
     }
 
     case 'hook': {
-      // Hook mode: claude-pg-memory hook <platform> <event>
+      // Hook mode: claude-pg-mem hook <platform> <event>
       const [platform, event] = args;
       if (!platform || !event) {
-        console.error('Usage: claude-pg-memory hook <platform> <event>');
+        console.error('Usage: claude-pg-mem hook <platform> <event>');
         console.error('  platform: claude-code, cursor, raw');
         console.error('  event: context, session-init, observation, summarize, session-complete, user-message, file-edit');
         process.exit(1);
@@ -201,9 +201,9 @@ function handleStatus(): void {
  */
 function printUsage(): void {
   console.log(`
-claude-pg-memory - Postgres-native persistent memory for Claude Code
+claude-pg-mem - Postgres-native persistent memory for Claude Code
 
-Usage: claude-pg-memory <command>
+Usage: claude-pg-mem <command>
 
 Commands:
   start       Start the worker service
@@ -216,10 +216,10 @@ Commands:
   hook        Run a hook (called by Claude Code)
 
 Examples:
-  npx claude-pg-memory install          # Set up hooks
-  npx claude-pg-memory start            # Start worker
-  npx claude-pg-memory status           # Check if running
-  npx claude-pg-memory hook claude-code context   # Run context hook
+  npx claude-pg-mem install          # Set up hooks
+  npx claude-pg-mem start            # Start worker
+  npx claude-pg-mem status           # Check if running
+  npx claude-pg-mem hook claude-code context   # Run context hook
 `.trim());
 }
 

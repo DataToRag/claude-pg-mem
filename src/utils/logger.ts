@@ -1,5 +1,5 @@
 /**
- * Structured Logger for claude-pg-memory
+ * Structured Logger for claude-pg-mem
  * Provides readable, traceable logging with correlation IDs and data flow tracking
  *
  * Ported from claude-mem — same logging pattern, different default data dir
@@ -26,8 +26,8 @@ interface LogContext {
   [key: string]: any;
 }
 
-// Default data directory for claude-pg-memory
-const DEFAULT_DATA_DIR = join(homedir(), '.claude-pg-memory');
+// Default data directory for claude-pg-mem
+const DEFAULT_DATA_DIR = join(homedir(), '.claude-pg-mem');
 
 class Logger {
   private level: LogLevel | null = null;
@@ -58,7 +58,7 @@ class Logger {
 
       // Create log file path with date
       const date = new Date().toISOString().split('T')[0];
-      this.logFilePath = join(logsDir, `claude-pg-memory-${date}.log`);
+      this.logFilePath = join(logsDir, `claude-pg-mem-${date}.log`);
     } catch (error) {
       // If log file initialization fails, just log to console
       console.error('[LOGGER] Failed to initialize log file:', error);
@@ -77,7 +77,7 @@ class Logger {
         if (existsSync(settingsPath)) {
           const settingsData = readFileSync(settingsPath, 'utf-8');
           const settings = JSON.parse(settingsData);
-          const envLevel = (settings.CLAUDE_PG_MEMORY_LOG_LEVEL || 'INFO').toUpperCase();
+          const envLevel = (settings.CLAUDE_PG_MEM_LOG_LEVEL || 'INFO').toUpperCase();
           this.level = LogLevel[envLevel as keyof typeof LogLevel] ?? LogLevel.INFO;
         } else {
           this.level = LogLevel.INFO;

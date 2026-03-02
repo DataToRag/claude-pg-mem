@@ -1,11 +1,11 @@
 {
-  "name": "claude-pg-memory",
+  "name": "claude-pg-mem",
   "version": "0.1.0",
   "description": "Postgres-native persistent memory for Claude Code — shared across instances and machines",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "claude-pg-memory": "dist/index.js"
+    "claude-pg-mem": "dist/index.js"
   },
   "exports": {
     ".": {
@@ -22,7 +22,7 @@
     "plugin"
   ],
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -33,7 +33,8 @@
     "worker:start": "tsx src/index.ts",
     "worker:dev": "tsx watch src/index.ts",
     "test": "node --test",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "build:plugin": "node scripts/build-plugin.js"
   },
   "keywords": [
     "claude",

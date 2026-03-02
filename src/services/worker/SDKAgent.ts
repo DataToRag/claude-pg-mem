@@ -122,7 +122,7 @@ export class SDKAgent {
     // Wait for agent pool slot
     const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
     const maxConcurrent =
-      parseInt(settings.CLAUDE_PG_MEMORY_MAX_CONCURRENT_AGENTS, 10) || 2;
+      parseInt(settings.CLAUDE_PG_MEM_MAX_CONCURRENT_AGENTS, 10) || 2;
     await waitForSlot(maxConcurrent);
 
     // Build isolated environment
@@ -245,7 +245,7 @@ export class SDKAgent {
           // Detect invalid API key
           if (typeof textContent === 'string' && textContent.includes('Invalid API key')) {
             throw new Error(
-              'Invalid API key: check your API key configuration in ~/.claude-pg-memory/settings.json or ~/.claude-pg-memory/.env'
+              'Invalid API key: check your API key configuration in ~/.claude-pg-mem/settings.json or ~/.claude-pg-mem/.env'
             );
           }
 
@@ -440,7 +440,7 @@ export class SDKAgent {
     }
 
     throw new Error(
-      'Claude executable not found. Please either:\n1. Add "claude" to your system PATH, or\n2. Set CLAUDE_CODE_PATH in ~/.claude-pg-memory/settings.json'
+      'Claude executable not found. Please either:\n1. Add "claude" to your system PATH, or\n2. Set CLAUDE_CODE_PATH in ~/.claude-pg-mem/settings.json'
     );
   }
 
@@ -449,6 +449,6 @@ export class SDKAgent {
    */
   private getModelId(): string {
     const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
-    return settings.CLAUDE_PG_MEMORY_MODEL;
+    return settings.CLAUDE_PG_MEM_MODEL;
   }
 }

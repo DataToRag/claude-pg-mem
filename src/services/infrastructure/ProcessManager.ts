@@ -6,7 +6,7 @@
  * - Signal handler registration for graceful shutdown
  * - Child process enumeration and cleanup
  *
- * Ported from claude-mem - adapted for claude-pg-memory paths.
+ * Ported from claude-mem - adapted for claude-pg-mem paths.
  * Removed Bun-specific runtime resolution (Node.js only).
  * Removed Chroma migration logic (not applicable to Postgres backend).
  */
@@ -30,7 +30,7 @@ import { HOOK_TIMEOUTS } from '../../shared/hook-constants.js';
 const execAsync = promisify(exec);
 
 // Standard paths for PID file management
-const DATA_DIR = path.join(homedir(), '.claude-pg-memory');
+const DATA_DIR = path.join(homedir(), '.claude-pg-mem');
 const PID_FILE = path.join(DATA_DIR, 'worker.pid');
 
 // Orphaned process cleanup patterns and thresholds
@@ -380,7 +380,7 @@ export function spawnDaemon(
 ): number | undefined {
   const env = {
     ...process.env,
-    CLAUDE_PG_MEMORY_WORKER_PORT: String(port),
+    CLAUDE_PG_MEM_WORKER_PORT: String(port),
     ...extraEnv,
   };
 

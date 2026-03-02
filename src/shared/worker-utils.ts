@@ -5,16 +5,16 @@ import { HOOK_TIMEOUTS, getTimeout } from "./hook-constants.js";
 import { SettingsDefaultsManager } from "./SettingsDefaultsManager.js";
 
 // Named constants for health checks
-// Allow env var override for users on slow systems (e.g., CLAUDE_PG_MEMORY_HEALTH_TIMEOUT_MS=10000)
+// Allow env var override for users on slow systems (e.g., CLAUDE_PG_MEM_HEALTH_TIMEOUT_MS=10000)
 const HEALTH_CHECK_TIMEOUT_MS = (() => {
-  const envVal = process.env.CLAUDE_PG_MEMORY_HEALTH_TIMEOUT_MS;
+  const envVal = process.env.CLAUDE_PG_MEM_HEALTH_TIMEOUT_MS;
   if (envVal) {
     const parsed = parseInt(envVal, 10);
     if (Number.isFinite(parsed) && parsed >= 500 && parsed <= 300000) {
       return parsed;
     }
     // Invalid env var -- log once and use default
-    logger.warn('SYSTEM', 'Invalid CLAUDE_PG_MEMORY_HEALTH_TIMEOUT_MS, using default', {
+    logger.warn('SYSTEM', 'Invalid CLAUDE_PG_MEM_HEALTH_TIMEOUT_MS, using default', {
       value: envVal, min: 500, max: 300000
     });
   }
@@ -46,7 +46,7 @@ let cachedHost: string | null = null;
 
 /**
  * Get the worker port number from settings
- * Uses CLAUDE_PG_MEMORY_WORKER_PORT from settings file or default (37778)
+ * Uses CLAUDE_PG_MEM_WORKER_PORT from settings file or default (37778)
  * Caches the port value to avoid repeated file reads
  */
 export function getWorkerPort(): number {
@@ -54,15 +54,15 @@ export function getWorkerPort(): number {
     return cachedPort;
   }
 
-  const settingsPath = path.join(SettingsDefaultsManager.get('CLAUDE_PG_MEMORY_DATA_DIR'), 'settings.json');
+  const settingsPath = path.join(SettingsDefaultsManager.get('CLAUDE_PG_MEM_DATA_DIR'), 'settings.json');
   const settings = SettingsDefaultsManager.loadFromFile(settingsPath);
-  cachedPort = parseInt(settings.CLAUDE_PG_MEMORY_WORKER_PORT, 10);
+  cachedPort = parseInt(settings.CLAUDE_PG_MEM_WORKER_PORT, 10);
   return cachedPort;
 }
 
 /**
  * Get the worker host address
- * Uses CLAUDE_PG_MEMORY_WORKER_HOST from settings file or default (127.0.0.1)
+ * Uses CLAUDE_PG_MEM_WORKER_HOST from settings file or default (127.0.0.1)
  * Caches the host value to avoid repeated file reads
  */
 export function getWorkerHost(): string {
@@ -70,9 +70,9 @@ export function getWorkerHost(): string {
     return cachedHost;
   }
 
-  const settingsPath = path.join(SettingsDefaultsManager.get('CLAUDE_PG_MEMORY_DATA_DIR'), 'settings.json');
+  const settingsPath = path.join(SettingsDefaultsManager.get('CLAUDE_PG_MEM_DATA_DIR'), 'settings.json');
   const settings = SettingsDefaultsManager.loadFromFile(settingsPath);
-  cachedHost = settings.CLAUDE_PG_MEMORY_WORKER_HOST;
+  cachedHost = settings.CLAUDE_PG_MEM_WORKER_HOST;
   return cachedHost;
 }
 
@@ -100,11 +100,15 @@ async function isWorkerHealthy(): Promise<boolean> {
   return response.ok;
 }
 
+declare const __PLUGIN_VERSION__: string | undefined;
+
 /**
  * Get the current plugin version from package.json.
  * Returns 'unknown' on ENOENT/EBUSY (shutdown race condition).
  */
 function getPluginVersion(): string {
+  // Injected by esbuild at bundle time
+  if (typeof __PLUGIN_VERSION__ !== 'undefined') return __PLUGIN_VERSION__;
   try {
     // Look for package.json relative to this module
     const packageJsonPath = path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'package.json');

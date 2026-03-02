@@ -1,7 +1,7 @@
 /**
  * Worker Service - Main Orchestrator
  *
- * The central daemon process for claude-pg-memory.
+ * The central daemon process for claude-pg-mem.
  * Starts the Express HTTP server, initializes database,
  * sets up SessionManager, and handles process lifecycle.
  *
@@ -61,7 +61,11 @@ import { startOrphanReaper } from './worker/ProcessRegistry.js';
 // Version
 // ---------------------------------------------------------------------------
 
+declare const __PLUGIN_VERSION__: string | undefined;
+
 function getPackageVersion(): string {
+  // Injected by esbuild at bundle time
+  if (typeof __PLUGIN_VERSION__ !== 'undefined') return __PLUGIN_VERSION__;
   try {
     const packageJsonPath = path.join(
       path.dirname(new URL(import.meta.url).pathname),
@@ -98,7 +102,7 @@ function createEmbedFn(): EmbedFn {
 function loadModeConfig(): ModeConfig {
   // Try loading from user settings directory
   const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
-  const dataDir = settings.CLAUDE_PG_MEMORY_DATA_DIR;
+  const dataDir = settings.CLAUDE_PG_MEM_DATA_DIR;
 
   try {
     const modePath = path.join(dataDir, 'mode.json');

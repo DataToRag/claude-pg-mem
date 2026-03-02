@@ -3,4 +3,4 @@ dist/
 .env
 *.log
 drizzle/meta/
-.claude-pg-memory/
+.claude-pg-mem/

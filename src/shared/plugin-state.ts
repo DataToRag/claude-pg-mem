@@ -7,10 +7,10 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
-const PLUGIN_SETTINGS_KEY = 'claude-pg-memory';
+const PLUGIN_SETTINGS_KEY = 'claude-pg-mem';
 
 /**
- * Check if claude-pg-memory is disabled in Claude Code's settings.
+ * Check if claude-pg-mem is disabled in Claude Code's settings.
  * Sync read + JSON parse for speed -- called before any async work.
  * Returns true only if the plugin is explicitly disabled (enabledPlugins[key] === false).
  */

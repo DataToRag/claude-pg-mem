@@ -1,5 +1,5 @@
 /**
- * claude-pg-memory MCP Search Server - Thin HTTP Wrapper
+ * claude-pg-mem MCP Search Server - Thin HTTP Wrapper
  *
  * Delegates all business logic to Worker HTTP API.
  * Maintains MCP protocol handling and tool schemas.
@@ -176,7 +176,7 @@ async function verifyWorkerConnection(): Promise<boolean> {
 // =============================================================================
 
 const server = new McpServer({
-  name: 'claude-pg-memory',
+  name: 'claude-pg-mem',
   version: '0.1.0',
 });
 
@@ -287,7 +287,7 @@ process.on('SIGINT', cleanup);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  logger.info('SYSTEM', 'claude-pg-memory MCP search server started');
+  logger.info('SYSTEM', 'claude-pg-mem MCP search server started');
 
   // Start parent heartbeat to detect orphaned MCP servers
   startParentHeartbeat();

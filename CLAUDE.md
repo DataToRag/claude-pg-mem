@@ -1,8 +1,8 @@
-# claude-pg-memory
+# claude-pg-mem
 
 ## What This Is
 
-A Postgres-native persistent memory system for Claude Code. A faithful port of [claude-mem](https://github.com/thedotmack/claude-mem) replacing SQLite/ChromaDB with Neon Postgres/pgvector. Enables shared memory across Claude Code instances and machines via a remote database.
+A Postgres-native persistent memory system for Claude Code. Uses Neon Postgres + pgvector for shared memory across Claude Code instances and machines. Installed as a Claude Code plugin with hooks, MCP tools, and an observer agent.
 
 Open source, MIT licensed.
 
@@ -14,8 +14,12 @@ ALWAYS use pnpm, never npm.
 
 ```
 Claude Code Session
-  ├── Hooks (SessionStart, UserPromptSubmit, PostToolUse, Stop)
-  │   └── HTTP POST to local worker service
+  ├── Plugin (hooks + MCP registered via .claude-plugin/)
+  │   ├── Setup hook → smart-install.js (auto-install native deps)
+  │   ├── SessionStart → start worker + inject memory context
+  │   ├── UserPromptSubmit → register session
+  │   ├── PostToolUse → queue observation
+  │   └── Stop → summarize + complete session
   ├── MCP Server (stdio, spawned by Claude Code)
   │   └── HTTP GET/POST to local worker service
   └── Observer Agent (background Claude subprocess via @anthropic-ai/claude-agent-sdk)
@@ -30,26 +34,41 @@ Worker Service (Express on localhost:37778)
       └── tsvector full-text search (GIN index)
 ```
 
+## Plugin Structure
+
+```
+plugin/
+  .claude-plugin/
+    plugin.json          # Plugin manifest (name, version, author)
+    CLAUDE.md            # Context injected into Claude sessions
+  .mcp.json              # MCP server registration (stdio)
+  hooks/hooks.json       # Hook definitions (Setup, SessionStart, etc.)
+  scripts/
+    worker-service.cjs   # Bundled worker + CLI (esbuild, ~365KB)
+    mcp-server.cjs       # Bundled MCP server (esbuild, ~341KB)
+    smart-install.js     # Auto-installs native deps on first run
+  modes/code.json        # Observation type definitions
+  package.json           # Native runtime deps (@huggingface/transformers, claude-agent-sdk)
+```
+
 ## Key Design Decisions
 
 ### DB Layer: Neon Postgres + Drizzle ORM
-- Schema in `src/services/postgres/schema.ts` — all 11 tables ported from claude-mem's 7 SQLite migrations
+- Schema in `src/services/postgres/schema.ts`
 - Drizzle ORM for type-safe queries, NOT raw SQL
-- `bigint` for epoch timestamps (compatibility with claude-mem's epoch-based queries)
+- `bigint` for epoch timestamps
 - `jsonb` for structured data (facts, concepts, files arrays)
 - Connection via `@neondatabase/serverless` (HTTP driver, serverless-friendly)
 
 ### Embeddings: Nomic Embed Text v1 (local, no API key)
-- Same approach as claude-mem (local sentence-transformers model via ChromaDB)
 - Runs via `@huggingface/transformers` in Node.js
 - 768-dimensional embeddings
 - Document prefix: `search_document: `, query prefix: `search_query: `
 
-### Search: pgvector + tsvector (replaces ChromaDB + FTS5)
-- `embedding vector(768)` columns on observations + session_summaries with HNSW indexes
+### Search: pgvector + tsvector
+- `embedding vector(768)` columns with HNSW indexes
 - `search_vector tsvector` generated columns with GIN indexes
 - SearchOrchestrator selects strategy: no query → structured SQL, query text → pgvector semantic or tsvector keyword
-- Embeddings generated via pluggable `EmbedFn` callback, default: Nomic Embed Text v1 (local)
 
 ### Observer Agent
 - Uses `@anthropic-ai/claude-agent-sdk` to spawn background Claude subprocess
@@ -78,10 +97,12 @@ Worker Service (Express on localhost:37778)
 - `src/services/infrastructure/` — Process management, health, shutdown
 - `src/cli/handlers/` — Hook handlers (HTTP calls to worker)
 - `src/cli/adapters/` — Platform-specific stdin normalization
-- `src/sdk/` — Prompt templates and XML parser (identical to claude-mem)
+- `src/sdk/` — Prompt templates and XML parser
 - `src/embeddings/` — Pluggable embedding providers
 - `src/shared/` — Cross-cutting utilities (paths, settings, constants)
-- `plugin/` — Hook registration config, mode configs
+- `src/installer/` — Plugin marketplace registration (install/uninstall)
+- `plugin/` — Plugin distribution (hooks, scripts, modes, manifest)
+- `scripts/` — Build and install scripts
 
 ## Code Patterns
 
@@ -90,27 +111,26 @@ Worker Service (Express on localhost:37778)
 export async function storeObservation(db: Database, input: ObservationInput, embedding?: number[]) { ... }
 ```
 
-### Settings use CLAUDE_PG_MEMORY_* prefix
-All env vars and settings keys use `CLAUDE_PG_MEMORY_` prefix (not `CLAUDE_MEM_`).
-Data directory: `~/.claude-pg-memory` (not `~/.claude-mem`).
-Default worker port: 37778 (not 37777, avoids collision with claude-mem).
-
-### Naming: claude-mem → claude-pg-memory
-All references updated. If you see `claude-mem` or `CLAUDE_MEM_` in the code, it's a bug (except in comments explaining the port origin).
+### Settings use CLAUDE_PG_MEM_* prefix
+All env vars and settings keys use `CLAUDE_PG_MEM_` prefix.
+Data directory: `~/.claude-pg-mem`.
+Default worker port: 37778.
 
 ## What NOT to Change
 
-- SDK prompts and XML schema — must stay identical to claude-mem for observation format compatibility
-- Hook lifecycle order — SessionStart → UserPromptSubmit → PostToolUse → Stop (summarize then complete)
-- Claim-confirm queue pattern — enqueue → claimNextMessage → confirmProcessed (prevents message loss)
-- Progressive disclosure tool pattern — search → timeline → get_observations (token efficiency)
+- SDK prompts and XML schema — observation format compatibility
+- Hook lifecycle order — Setup → SessionStart → UserPromptSubmit → PostToolUse → Stop
+- Claim-confirm queue pattern — enqueue → claimNextMessage → confirmProcessed
+- Progressive disclosure tool pattern — search → timeline → get_observations
 
 ## Testing
 
-- `npx tsc --noEmit` — Type check (must pass with zero errors)
+- `pnpm run lint` — Type check (must pass with zero errors)
+- `pnpm run build:plugin` — Build plugin bundles
 - `pnpm run db:push` — Apply schema to Neon
 - `pnpm run worker:start` — Start worker service
-- Test hooks by starting a Claude Code session with the plugin installed
+- `node scripts/install.js` — Install as Claude Code plugin
+- Test by starting a Claude Code session with the plugin installed
 
 ## Environment Variables
 
@@ -118,7 +138,7 @@ Required:
 - `DATABASE_URL` — Neon Postgres connection string
 
 Optional:
-- `CLAUDE_PG_MEMORY_PORT` — Worker port (default: 37778)
-- `CLAUDE_PG_MEMORY_DATA_DIR` — Data directory (default: ~/.claude-pg-memory)
-- `CLAUDE_PG_MEMORY_LOG_LEVEL` — Log level (default: info)
-- `CLAUDE_PG_MEMORY_MAX_CONCURRENT_AGENTS` — Max observer agents (default: 2)
+- `CLAUDE_PG_MEM_WORKER_PORT` — Worker port (default: 37778)
+- `CLAUDE_PG_MEM_DATA_DIR` — Data directory (default: ~/.claude-pg-mem)
+- `CLAUDE_PG_MEM_LOG_LEVEL` — Log level (default: info)
+- `CLAUDE_PG_MEM_MAX_CONCURRENT_AGENTS` — Max observer agents (default: 2)
