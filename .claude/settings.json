@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install*)",
+      "Bash(pnpm run*)",
+      "Bash(npx tsc*)",
+      "Bash(npx drizzle-kit*)",
+      "Bash(find *)",
+      "Bash(mkdir *)",
+      "Bash(ls *)",
+      "Bash(wc *)",
+      "Bash(git *)"
+    ]
+  }
+}
