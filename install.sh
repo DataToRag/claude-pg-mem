@@ -11,6 +11,7 @@ set -euo pipefail
 
 REPO="DataToRag/claude-pg-mem"
 INSTALL_DIR="${HOME}/.claude-pg-mem/cli"
+BIN_DIR="${HOME}/.local/bin"
 MIN_NODE_VERSION=22
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -34,6 +35,47 @@ check_pnpm() {
   }
 }
 
+ensure_bin_dir() {
+  mkdir -p "$BIN_DIR"
+
+  # Add ~/.local/bin to PATH in shell profile if not already present
+  if ! echo "$PATH" | tr ':' '\n' | grep -qx "$BIN_DIR"; then
+    local shell_profile=""
+    case "${SHELL:-/bin/bash}" in
+      */zsh)  shell_profile="$HOME/.zshrc" ;;
+      */bash)
+        if [ -f "$HOME/.bash_profile" ]; then
+          shell_profile="$HOME/.bash_profile"
+        else
+          shell_profile="$HOME/.bashrc"
+        fi
+        ;;
+      *) shell_profile="$HOME/.profile" ;;
+    esac
+
+    if [ -n "$shell_profile" ] && ! grep -q '\.local/bin' "$shell_profile" 2>/dev/null; then
+      info "Adding ~/.local/bin to PATH in $shell_profile"
+      echo '' >> "$shell_profile"
+      echo '# claude-pg-mem' >> "$shell_profile"
+      echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$shell_profile"
+    fi
+
+    export PATH="$BIN_DIR:$PATH"
+  fi
+}
+
+install_wrapper() {
+  local node_path
+  node_path="$(command -v node)"
+  local entry_point="$INSTALL_DIR/dist/index.js"
+
+  cat > "$BIN_DIR/claude-pg-mem" <<WRAPPER
+#!/usr/bin/env bash
+exec "$node_path" "$entry_point" "\$@"
+WRAPPER
+  chmod +x "$BIN_DIR/claude-pg-mem"
+}
+
 # ── Main ─────────────────────────────────────────────────────────────────
 
 main() {
@@ -43,15 +85,20 @@ main() {
   # Prerequisites
   check_node
   check_pnpm
+  ensure_bin_dir
 
   # Determine install method: local clone vs fresh download
   if [ -f "package.json" ] && grep -q '"claude-pg-mem"' package.json 2>/dev/null; then
-    # Running from inside the repo
+    # Running from inside the repo — copy to install dir
     info "Installing from local repo..."
-    INSTALL_DIR="$(pwd)"
+    if [ "$(pwd)" != "$INSTALL_DIR" ]; then
+      mkdir -p "$INSTALL_DIR"
+      rsync -a --exclude node_modules --exclude .git --exclude dist . "$INSTALL_DIR/"
+      cd "$INSTALL_DIR"
+    fi
   else
     # Clone fresh
-    if [ -d "$INSTALL_DIR" ]; then
+    if [ -d "$INSTALL_DIR/.git" ]; then
       info "Updating existing installation..."
       cd "$INSTALL_DIR"
       git pull --ff-only 2>/dev/null || {
@@ -63,6 +110,7 @@ main() {
       }
     else
       info "Cloning repository..."
+      rm -rf "$INSTALL_DIR"
       mkdir -p "$(dirname "$INSTALL_DIR")"
       git clone "https://github.com/${REPO}.git" "$INSTALL_DIR"
       cd "$INSTALL_DIR"
@@ -81,19 +129,17 @@ main() {
   info "Building plugin bundles..."
   pnpm run build:plugin
 
-  # Link CLI globally
-  info "Linking CLI..."
-  pnpm link --global 2>/dev/null || npm link
+  # Install CLI wrapper to ~/.local/bin
+  info "Installing CLI to $BIN_DIR..."
+  install_wrapper
 
-  # Verify CLI is available
+  # Verify
   if command -v claude-pg-mem >/dev/null 2>&1; then
     ok "CLI installed: $(which claude-pg-mem)"
   else
-    # Add to PATH hint
-    err "CLI not found in PATH after linking."
-    echo "  Add this to your shell profile (~/.zshrc or ~/.bashrc):"
-    echo "    export PATH=\"\$(pnpm bin -g):\$PATH\""
-    echo "  Then restart your shell."
+    ok "CLI installed to $BIN_DIR/claude-pg-mem"
+    echo "  Restart your shell or run:"
+    echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
   fi
 
   echo

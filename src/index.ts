@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * claude-pg-mem CLI Entry Point
  *
