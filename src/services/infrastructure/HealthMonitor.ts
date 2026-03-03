@@ -113,11 +113,16 @@ export async function httpShutdown(port: number): Promise<boolean> {
   }
 }
 
+declare const __PLUGIN_VERSION__: string | undefined;
+
 /**
  * Get the plugin version from local package.json.
- * Returns 'unknown' on ENOENT/EBUSY.
+ * Returns 'unknown' on ENOENT/EBUSY or when import.meta.url is unavailable (CJS bundles).
  */
 export function getInstalledPluginVersion(): string {
+  // Injected by esbuild at bundle time — works in CJS bundles where import.meta.url is unavailable
+  if (typeof __PLUGIN_VERSION__ !== 'undefined') return __PLUGIN_VERSION__;
+
   try {
     // Look for package.json relative to this module
     const packageJsonPath = path.join(
@@ -133,9 +138,8 @@ export function getInstalledPluginVersion(): string {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === 'ENOENT' || code === 'EBUSY') {
       logger.debug('SYSTEM', 'Could not read plugin version', { code });
-      return 'unknown';
     }
-    throw error;
+    return 'unknown';
   }
 }
 

@@ -2,6 +2,7 @@
   "name": "claude-pg-mem-plugin",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Runtime native dependencies for claude-pg-mem plugin",
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
