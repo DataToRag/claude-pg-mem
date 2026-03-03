@@ -49,7 +49,7 @@ await build({
   format: 'cjs',
   outfile: join(SCRIPTS_DIR, 'worker-service.cjs'),
   minify: true,
-  banner: { js: '#!/usr/bin/env node' },
+  banner: {},
   external: NATIVE_EXTERNALS,
   define: {
     '__PLUGIN_VERSION__': JSON.stringify(VERSION),
@@ -58,8 +58,9 @@ await build({
   conditions: ['import', 'node', 'default'],
 });
 
-const workerSize = statSync(join(SCRIPTS_DIR, 'worker-service.cjs')).size;
-chmodSync(join(SCRIPTS_DIR, 'worker-service.cjs'), 0o755);
+const workerPath = join(SCRIPTS_DIR, 'worker-service.cjs');
+const workerSize = statSync(workerPath).size;
+chmodSync(workerPath, 0o755);
 console.log(`  worker-service.cjs: ${(workerSize / 1024).toFixed(0)} KB`);
 
 // ── Build 2: MCP Server ─────────────────────────────────────────────
@@ -72,7 +73,7 @@ await build({
   format: 'cjs',
   outfile: join(SCRIPTS_DIR, 'mcp-server.cjs'),
   minify: true,
-  banner: { js: '#!/usr/bin/env node' },
+  banner: {},
   external: [],
   define: {
     '__PLUGIN_VERSION__': JSON.stringify(VERSION),

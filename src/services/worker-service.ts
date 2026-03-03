@@ -311,13 +311,18 @@ export class WorkerService {
     cleanStalePidFile();
 
     // Find the worker entry script
-    const workerScript = path.join(
-      path.dirname(new URL(import.meta.url).pathname),
-      '..',
-      '..',
-      'dist',
-      'worker-entry.js',
-    );
+    // In plugin context: use the bundled worker-service.cjs
+    // In dev/dist context: use dist/index.js (CLI entry, handles --daemon)
+    let workerScript: string;
+    if (process.env.CLAUDE_PLUGIN_ROOT) {
+      workerScript = path.join(process.env.CLAUDE_PLUGIN_ROOT, 'scripts', 'worker-service.cjs');
+    } else {
+      workerScript = path.join(
+        path.dirname(new URL(import.meta.url).pathname),
+        '..',
+        'index.js',
+      );
+    }
 
     logger.info('SYSTEM', 'Spawning worker daemon', { port, script: workerScript });
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * claude-pg-mem CLI Entry Point
  *
@@ -18,19 +17,19 @@
  */
 
 import { logger } from './utils/logger.js';
-import {
-  readPidFile,
-  isProcessAlive,
-  removePidFile,
-  spawnDaemon,
-  cleanStalePidFile,
-} from './services/infrastructure/ProcessManager.js';
-import { getWorkerPort } from './shared/worker-utils.js';
-import { DATA_DIR, USER_SETTINGS_PATH, ensureAllDataDirs } from './shared/paths.js';
+import { USER_SETTINGS_PATH, ensureAllDataDirs } from './shared/paths.js';
 
 const [, , command, ...args] = process.argv;
 
 async function main(): Promise<void> {
+  // Daemon mode: spawned by `start` command via spawnDaemon()
+  if (command === '--daemon') {
+    const { WorkerService } = await import('./services/worker-service.js');
+    const worker = new WorkerService();
+    await worker.startDaemon();
+    return;
+  }
+
   switch (command) {
     case 'start':
       await handleStart();
@@ -46,7 +45,7 @@ async function main(): Promise<void> {
       break;
 
     case 'status':
-      handleStatus();
+      await handleStatus();
       break;
 
     case 'install': {
@@ -191,7 +190,6 @@ async function handleConfig(configArgs: string[]): Promise<void> {
     case 'list': {
       const merged = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
       const fileSettings = readSettings();
-      const defaults = SettingsDefaultsManager.getAllDefaults();
 
       console.log(`Settings (${USER_SETTINGS_PATH}):\n`);
       for (const [k, v] of Object.entries(merged as unknown as Record<string, string>)) {
@@ -300,111 +298,33 @@ async function handleDb(dbArgs: string[]): Promise<void> {
  */
 async function handleStart(): Promise<void> {
   ensureAllDataDirs();
-
-  // Check if already running
-  cleanStalePidFile();
-  const pidInfo = readPidFile();
-  if (pidInfo && isProcessAlive(pidInfo.pid)) {
-    console.log(`Worker already running (PID ${pidInfo.pid}, port ${pidInfo.port})`);
-    return;
-  }
-
-  const port = getWorkerPort();
-  console.log(`Starting worker on port ${port}...`);
-
-  // Find the worker entry script
-  // In development: use tsx to run the TypeScript source directly
-  // In production (dist): the compiled JS is used
-  const { fileURLToPath } = await import('url');
-  const { dirname, join } = await import('path');
-  const { existsSync } = await import('fs');
-
-  const thisDir = dirname(fileURLToPath(import.meta.url));
-
-  // Look for the compiled worker service first, then fall back to source
-  const workerScript = join(thisDir, 'services', 'worker', 'SDKAgent.js');
-  const workerScriptTs = join(thisDir, '..', 'src', 'services', 'worker', 'SDKAgent.ts');
-
-  // For now, the worker is the express HTTP server that needs to be built.
-  // Spawn the daemon using the current entry point with a special flag.
-  // The actual worker startup will be a separate module.
-  // For MVP, log that the worker needs to be started via the dev script.
-  console.log(`Worker data directory: ${DATA_DIR}`);
-  console.log('');
-  console.log('To start the worker in development mode:');
-  console.log('  pnpm run worker:dev');
-  console.log('');
-  console.log('To start the worker in production mode:');
-  console.log('  pnpm run worker:start');
+  const { WorkerService } = await import('./services/worker-service.js');
+  await WorkerService.start();
 }
 
 /**
  * Stop the worker service
  */
 async function handleStop(): Promise<void> {
-  cleanStalePidFile();
-  const pidInfo = readPidFile();
-  if (!pidInfo) {
-    console.log('Worker is not running (no PID file found)');
-    return;
-  }
-
-  if (!isProcessAlive(pidInfo.pid)) {
-    console.log('Worker process is dead, cleaning up PID file');
-    removePidFile();
-    return;
-  }
-
-  console.log(`Stopping worker (PID ${pidInfo.pid})...`);
-  try {
-    process.kill(pidInfo.pid, 'SIGTERM');
-    // Wait for process to exit
-    const maxWait = 10000;
-    const start = Date.now();
-    while (Date.now() - start < maxWait) {
-      if (!isProcessAlive(pidInfo.pid)) {
-        removePidFile();
-        console.log('Worker stopped');
-        return;
-      }
-      await new Promise(r => setTimeout(r, 200));
-    }
-    // Force kill if still alive
-    process.kill(pidInfo.pid, 'SIGKILL');
-    removePidFile();
-    console.log('Worker force-killed');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ESRCH') {
-      removePidFile();
-      console.log('Worker already stopped');
-    } else {
-      console.error('Failed to stop worker:', error);
-      process.exit(1);
-    }
-  }
+  const { WorkerService } = await import('./services/worker-service.js');
+  await WorkerService.stop();
 }
 
 /**
  * Show worker status
  */
-function handleStatus(): void {
-  cleanStalePidFile();
-  const pidInfo = readPidFile();
-  if (!pidInfo) {
+async function handleStatus(): Promise<void> {
+  const { WorkerService } = await import('./services/worker-service.js');
+  const info = await WorkerService.status();
+  if (!info.running) {
     console.log('Worker: stopped');
     return;
   }
-
-  if (!isProcessAlive(pidInfo.pid)) {
-    console.log('Worker: dead (stale PID file)');
-    removePidFile();
-    return;
-  }
-
-  console.log(`Worker: running`);
-  console.log(`  PID:     ${pidInfo.pid}`);
-  console.log(`  Port:    ${pidInfo.port}`);
-  console.log(`  Started: ${pidInfo.startedAt}`);
+  console.log('Worker: running');
+  if (info.pid) console.log(`  PID:     ${info.pid}`);
+  console.log(`  Port:    ${info.port}`);
+  if (info.version) console.log(`  Version: ${info.version}`);
+  if (info.uptime) console.log(`  Uptime:  ${Math.round(info.uptime)}s`);
 }
 
 /**
