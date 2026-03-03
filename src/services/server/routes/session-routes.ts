@@ -58,9 +58,13 @@ export function createSessionRoutes(sessionManager: SessionManager): Router {
       created_at: new Date().toISOString(),
     });
 
-    // Check if context was already injected for this session
-    // (If promptNumber > 1, context was injected on the first prompt)
-    const contextInjected = promptNumber > 1;
+    // Context was injected on the first prompt AND the agent is still running.
+    // If the worker restarted since prompt 1, the session may be in the Map
+    // (via queueObservation auto-init) but the agent won't be running.
+    // Check generatorPromise to confirm the agent is actually processing.
+    const activeSession = sessionManager.getSession(sessionDbId);
+    const agentRunning = !!(activeSession?.generatorPromise);
+    const contextInjected = promptNumber > 1 && agentRunning;
 
     logger.info('HTTP', `Session init | sessionDbId=${sessionDbId} | promptNumber=${promptNumber}`, {
       sessionId: sessionDbId,

@@ -144,10 +144,44 @@ Default worker port: 37778.
 - Progressive disclosure tool pattern — search → timeline → get_observations
 - Table name prefix `cpm_` — changing would break existing deployments
 
+## Build System: Two Separate Outputs
+
+The project has TWO build targets that serve different purposes:
+
+1. **`pnpm run build`** (`tsc`) → `dist/` — Used by the **worker daemon** (`claude-pg-mem start` runs `dist/index.js`)
+2. **`pnpm run build:plugin`** (esbuild) → `plugin/scripts/` — Used by **hooks** (each hook spawns `node plugin/scripts/worker-service.cjs`)
+
+**After changing worker/route code, you MUST run both builds and restart:**
+```bash
+pnpm run build && pnpm run build:plugin
+kill -9 $(lsof -ti :37778); claude-pg-mem start
+```
+
+The `claude-pg-mem restart` command may not reliably kill the old process. Use `kill -9` + `lsof` to be sure.
+
+**When `install.sh` is needed:** Only when the CLI wrapper itself changes (new subcommands, path changes). For code changes, build + restart is sufficient.
+
+## Debugging the Worker
+
+- Logs: `~/.claude-pg-mem/logs/claude-pg-mem-YYYY-MM-DD.log`
+- Check worker PID: `lsof -i :37778`
+- Check DB state: `claude-pg-mem db status` (row counts for all tables)
+- Health check: `curl http://127.0.0.1:37778/health`
+- Manual session init test: `curl -X POST http://127.0.0.1:37778/api/sessions/init -H 'Content-Type: application/json' -d '{"contentSessionId":"...","project":"...","prompt":"test"}'`
+
+### Common Issues
+
+**Observer agent not processing (cpm_pending_messages growing, cpm_observations stuck at 0):**
+The `session-init` handler (UserPromptSubmit hook) controls whether the SDK agent starts. If `contextInjected` is returned as `true` from `/api/sessions/init`, the hook skips agent initialization. Check `session-routes.ts` — the route must verify the agent is actually running (via `generatorPromise`), not just that the session exists in the Map.
+
+**Session in Map but agent not running:**
+`queueObservation()` auto-initializes sessions via `initializeSession()` (puts session in Map with `generatorPromise: null`). This is NOT the same as `startSession()` which actually launches the Claude subprocess. Always check `generatorPromise` to determine if the agent is truly active.
+
 ## Testing
 
 - `pnpm run lint` — Type check (must pass with zero errors)
 - `pnpm run build:plugin` — Build plugin bundles
+- `pnpm run build` — Build TypeScript to dist/
 - `claude-pg-mem db push` — Apply schema to Neon
 - `claude-pg-mem db status` — Verify database connection and tables
 - `claude-pg-mem start` — Start worker service
