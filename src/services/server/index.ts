@@ -19,12 +19,16 @@ import { createHealthRoutes } from './routes/health-routes.js';
 import { createContextRoutes } from './routes/context-routes.js';
 import { createSessionRoutes } from './routes/session-routes.js';
 import { createSearchRoutes } from './routes/search-routes.js';
+import { createDataRoutes } from './routes/data-routes.js';
+import { createViewerRoutes } from './routes/viewer-routes.js';
 import { SessionManager } from './SessionManager.js';
+import { SSEBroadcaster } from '../worker/SSEBroadcaster.js';
 import type { EmbedFn } from '../../embeddings/index.js';
 
 export interface ServerConfig {
   sessionManager: SessionManager;
   embedFn?: EmbedFn;
+  sseBroadcaster?: SSEBroadcaster;
 }
 
 export interface ServerInstance {
@@ -55,12 +59,23 @@ export function createServer(config: ServerConfig): ServerInstance {
   app.use(requestLogger());
 
   // -----------------------------------------------------------------------
-  // Route groups
+  // SSE broadcaster
+  // -----------------------------------------------------------------------
+  const sseBroadcaster = config.sseBroadcaster || new SSEBroadcaster();
+
+  // -----------------------------------------------------------------------
+  // API route groups (must be before viewer routes)
   // -----------------------------------------------------------------------
   app.use(createHealthRoutes());
   app.use(createContextRoutes());
   app.use(createSessionRoutes(config.sessionManager));
   app.use(createSearchRoutes(config.embedFn));
+  app.use(createDataRoutes(config.sessionManager, sseBroadcaster));
+
+  // -----------------------------------------------------------------------
+  // Viewer routes (serves HTML at / — must be after API routes)
+  // -----------------------------------------------------------------------
+  app.use(createViewerRoutes(sseBroadcaster, config.sessionManager));
 
   // -----------------------------------------------------------------------
   // Error handling (must be last)
@@ -111,4 +126,5 @@ export function createServer(config: ServerConfig): ServerInstance {
 
 // Re-export key types for external use
 export { SessionManager } from './SessionManager.js';
+export { SSEBroadcaster } from '../worker/SSEBroadcaster.js';
 export { AppError, asyncHandler } from './middleware.js';

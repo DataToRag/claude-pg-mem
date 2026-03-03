@@ -45,7 +45,7 @@ import {
 import { performGracefulShutdown } from './infrastructure/GracefulShutdown.js';
 
 // Server
-import { createServer, SessionManager } from './server/index.js';
+import { createServer, SessionManager, SSEBroadcaster } from './server/index.js';
 
 // Embeddings
 import { noopEmbedder, createNomicEmbedder } from '../embeddings/index.js';
@@ -184,6 +184,7 @@ function loadModeConfig(): ModeConfig {
 
 export class WorkerService {
   private sessionManager: SessionManager | null = null;
+  private sseBroadcaster: SSEBroadcaster | null = null;
   private server: ReturnType<typeof createServer> | null = null;
   private isShuttingDown = false;
   private stopOrphanReaper: (() => void) | null = null;
@@ -224,13 +225,17 @@ export class WorkerService {
     const modeConfig = loadModeConfig();
     logger.info('SYSTEM', `Mode loaded: ${modeConfig.name}`);
 
+    // Create SSE broadcaster for real-time viewer updates
+    this.sseBroadcaster = new SSEBroadcaster();
+
     // Create session manager
-    this.sessionManager = new SessionManager(embedFn, modeConfig);
+    this.sessionManager = new SessionManager(embedFn, modeConfig, this.sseBroadcaster);
 
     // Create and start HTTP server
     this.server = createServer({
       sessionManager: this.sessionManager,
       embedFn,
+      sseBroadcaster: this.sseBroadcaster,
     });
 
     await this.server.listen(port, host);

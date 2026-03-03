@@ -17,7 +17,7 @@ export enum LogLevel {
   SILENT = 4
 }
 
-export type Component = 'HOOK' | 'WORKER' | 'SDK' | 'PARSER' | 'DB' | 'SYSTEM' | 'HTTP' | 'SESSION' | 'EMBED' | 'QUEUE' | 'PG' | 'ENV' | 'FOLDER_INDEX' | 'CLAUDE_MD';
+export type Component = 'HOOK' | 'WORKER' | 'SDK' | 'PARSER' | 'DB' | 'SYSTEM' | 'HTTP' | 'SESSION' | 'EMBED' | 'QUEUE' | 'PG' | 'ENV' | 'FOLDER_INDEX' | 'CLAUDE_MD' | 'VIEWER';
 
 interface LogContext {
   sessionId?: number;

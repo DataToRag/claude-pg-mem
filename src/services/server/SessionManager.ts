@@ -43,6 +43,7 @@ import type { ModeConfig } from '../domain/types.js';
 import type { EmbedFn } from '../../embeddings/index.js';
 import { SDKAgent } from '../worker/SDKAgent.js';
 import { getProcessBySession, ensureProcessExit } from '../worker/ProcessRegistry.js';
+import type { SSEBroadcaster } from '../worker/SSEBroadcaster.js';
 
 // Idle timeout for sessions — 15 minutes without activity
 const MAX_SESSION_IDLE_MS = 15 * 60 * 1000;
@@ -62,10 +63,21 @@ export class SessionManager implements SDKSessionManager {
   private sessionQueues: Map<number, EventEmitter> = new Map();
   private embedFn?: EmbedFn;
   private modeConfig?: ModeConfig;
+  private sseBroadcaster?: SSEBroadcaster;
 
-  constructor(embedFn?: EmbedFn, modeConfig?: ModeConfig) {
+  constructor(embedFn?: EmbedFn, modeConfig?: ModeConfig, sseBroadcaster?: SSEBroadcaster) {
     this.embedFn = embedFn;
     this.modeConfig = modeConfig;
+    this.sseBroadcaster = sseBroadcaster;
+  }
+
+  /**
+   * Broadcast an SSE event to connected viewers
+   */
+  broadcastEvent(event: { type: string; [key: string]: any }): void {
+    if (this.sseBroadcaster) {
+      this.sseBroadcaster.broadcast(event);
+    }
   }
 
   /**
@@ -423,6 +435,7 @@ export class SessionManager implements SDKSessionManager {
    */
   private createDatabaseManager(): DatabaseManagerRef {
     const embedFn = this.embedFn;
+    const self = this;
 
     return {
       getSessionStore(): SessionStoreRef {
@@ -510,6 +523,52 @@ export class SessionManager implements SDKSessionManager {
               pendingResult.observationIds = result.observationIds;
               pendingResult.summaryId = result.summaryId;
               pendingResult.createdAtEpoch = result.createdAtEpoch;
+
+              // Broadcast SSE events for the viewer
+              for (let i = 0; i < obsInputs.length; i++) {
+                const obs = obsInputs[i];
+                const obsId = result.observationIds[i];
+                if (obsId) {
+                  self.broadcastEvent({
+                    type: 'new_observation',
+                    observation: {
+                      id: obsId,
+                      memory_session_id: obs.memory_session_id,
+                      project: obs.project || project,
+                      type: obs.type,
+                      title: obs.title || null,
+                      subtitle: obs.subtitle || null,
+                      narrative: obs.narrative || null,
+                      text: null,
+                      facts: obs.facts || null,
+                      concepts: obs.concepts || null,
+                      files_read: obs.files_read || null,
+                      files_modified: obs.files_modified || null,
+                      prompt_number: obs.prompt_number || 0,
+                      created_at: obs.created_at || createdAt,
+                      created_at_epoch: now,
+                    },
+                  });
+                }
+              }
+              if (summaryInput && result.summaryId) {
+                self.broadcastEvent({
+                  type: 'new_summary',
+                  summary: {
+                    id: result.summaryId,
+                    session_id: memorySessionId,
+                    project,
+                    request: summaryInput.request || null,
+                    investigated: summaryInput.investigated || null,
+                    learned: summaryInput.learned || null,
+                    completed: summaryInput.completed || null,
+                    next_steps: summaryInput.next_steps || null,
+                    notes: summaryInput.notes || null,
+                    created_at: summaryInput.created_at || createdAt,
+                    created_at_epoch: now,
+                  },
+                });
+              }
             }).catch((error) => {
               logger.error('DB', 'storeObservations failed', { memorySessionId }, error as Error);
             });
@@ -584,6 +643,13 @@ export class SessionManager implements SDKSessionManager {
   async isAnySessionProcessing(): Promise<boolean> {
     const db = getDb();
     return await hasAnyPendingWork(db);
+  }
+
+  /**
+   * Get total active work items (active sessions as a proxy)
+   */
+  async getTotalActiveWork(): Promise<number> {
+    return this.sessions.size;
   }
 
   /**
