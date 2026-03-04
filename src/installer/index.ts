@@ -46,25 +46,33 @@ function writeJson(filepath: string, data: Record<string, any>): void {
   writeFileSync(filepath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
 }
 
-function getPluginVersion(): string {
-  const packageRoot = getPackageRoot();
-  // Try plugin manifest first
-  const pluginJsonPath = join(packageRoot, '.claude-plugin', 'plugin.json');
+/**
+ * Get the semver-only version (for cache directory naming).
+ */
+function getPluginSemver(): string {
+  const pluginSource = findPluginSource();
+  const pluginJsonPath = join(pluginSource, '.claude-plugin', 'plugin.json');
   if (existsSync(pluginJsonPath)) {
     try {
       const pluginJson = JSON.parse(readFileSync(pluginJsonPath, 'utf-8'));
       if (pluginJson.version) return pluginJson.version;
     } catch { /* fall through */ }
   }
-  // Try root package.json
-  const pkgPath = join(packageRoot, '..', 'package.json');
-  if (existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-      if (pkg.version) return pkg.version;
-    } catch { /* fall through */ }
-  }
   return '0.1.0';
+}
+
+/**
+ * Get the full version including build hash (for version matching).
+ * Falls back to semver if no .install-version exists.
+ */
+function getPluginFullVersion(): string {
+  const pluginSource = findPluginSource();
+  const installVersionPath = join(pluginSource, '.install-version');
+  if (existsSync(installVersionPath)) {
+    const ver = readFileSync(installVersionPath, 'utf-8').trim();
+    if (ver) return ver;
+  }
+  return getPluginSemver();
 }
 
 /**
@@ -93,12 +101,13 @@ function findPluginSource(): string {
  * Install claude-pg-mem as a Claude Code plugin.
  */
 export async function install(): Promise<void> {
-  const version = getPluginVersion();
+  const semver = getPluginSemver();
+  const fullVersion = getPluginFullVersion();
   const pluginSource = findPluginSource();
-  const pluginCachePath = join(PLUGINS_DIR, 'cache', 'DataToRag', 'claude-pg-mem', version);
+  const pluginCachePath = join(PLUGINS_DIR, 'cache', 'DataToRag', 'claude-pg-mem', semver);
   const now = new Date().toISOString();
 
-  console.log(`Installing claude-pg-mem v${version} as Claude Code plugin...\n`);
+  console.log(`Installing claude-pg-mem v${fullVersion} as Claude Code plugin...\n`);
 
   // Verify plugin source has bundled .cjs files
   const workerCjs = join(pluginSource, 'scripts', 'worker-service.cjs');
@@ -148,7 +157,7 @@ export async function install(): Promise<void> {
     {
       scope: 'user',
       installPath: pluginCachePath,
-      version,
+      version: semver,
       installedAt: now,
       lastUpdated: now,
     },
@@ -165,7 +174,7 @@ export async function install(): Promise<void> {
   // 6. Ensure data directory exists
   ensureAllDataDirs();
 
-  console.log(`\nInstallation complete! (v${version})\n`);
+  console.log(`\nInstallation complete! (v${fullVersion})\n`);
   console.log('Restart Claude Code to activate the plugin.');
 }
 

@@ -51,12 +51,15 @@ export function useSpinningFavicon(isProcessing: boolean) {
 
     const animate = () => {
       if (!image.complete || image.naturalWidth === 0) {
-        // Image not loaded or broken — stop trying
+        // Image not loaded yet — keep waiting; broken — stop entirely
         if (!image.complete) {
           animationRef.current = requestAnimationFrame(animate);
         }
         return;
       }
+
+      // Extra safety: if the image somehow enters 'broken' state mid-animation
+      try {
 
       // Rotate by ~4 degrees per frame (matches 1.5s for full rotation at 60fps)
       rotationRef.current += (2 * Math.PI) / 90;
@@ -70,6 +73,10 @@ export function useSpinningFavicon(isProcessing: boolean) {
 
       updateFavicon(canvas.toDataURL('image/png'));
       animationRef.current = requestAnimationFrame(animate);
+      } catch {
+        // Image became broken (e.g. 404) — stop animation silently
+        return;
+      }
     };
 
     if (isProcessing) {

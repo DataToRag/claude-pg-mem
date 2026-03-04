@@ -9,9 +9,10 @@
  * Native deps are externalized and declared in plugin/package.json.
  */
 import { build } from 'esbuild';
-import { readFileSync, chmodSync, statSync, mkdirSync, existsSync, cpSync } from 'fs';
+import { readFileSync, writeFileSync, chmodSync, statSync, mkdirSync, existsSync, cpSync, rmSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createHash } from 'crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -27,7 +28,11 @@ if (!existsSync(SCRIPTS_DIR)) {
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
 const VERSION = pkg.version;
 
-console.log(`Building claude-pg-mem plugin v${VERSION}...\n`);
+// Generate a short build hash from timestamp for dev-time cache invalidation
+const BUILD_HASH = createHash('sha1').update(Date.now().toString()).digest('hex').slice(0, 8);
+const FULL_VERSION = `${VERSION}+${BUILD_HASH}`;
+
+console.log(`Building claude-pg-mem plugin v${FULL_VERSION}...\n`);
 
 // Native dependencies that cannot be bundled (contain .node binaries)
 const NATIVE_EXTERNALS = [
@@ -52,7 +57,7 @@ await build({
   banner: {},
   external: NATIVE_EXTERNALS,
   define: {
-    '__PLUGIN_VERSION__': JSON.stringify(VERSION),
+    '__PLUGIN_VERSION__': JSON.stringify(FULL_VERSION),
   },
   mainFields: ['module', 'main'],
   conditions: ['import', 'node', 'default'],
@@ -76,7 +81,7 @@ await build({
   banner: {},
   external: [],
   define: {
-    '__PLUGIN_VERSION__': JSON.stringify(VERSION),
+    '__PLUGIN_VERSION__': JSON.stringify(FULL_VERSION),
   },
   mainFields: ['module', 'main'],
   conditions: ['import', 'node', 'default'],
@@ -155,4 +160,23 @@ if (existsSync(VIEWER_ENTRY)) {
   console.log('Skipping viewer build (src/ui/viewer/index.tsx not found)');
 }
 
-console.log('\nBuild complete!');
+// Write build version to .install-version for cache invalidation
+writeFileSync(join(PLUGIN_DIR, '.install-version'), FULL_VERSION + '\n');
+
+// Auto-install: copy to Claude Code plugin cache so the running worker picks up changes
+const cacheDir = join(
+  process.env.HOME || process.env.USERPROFILE || '',
+  '.claude', 'plugins', 'cache', 'DataToRag', 'claude-pg-mem'
+);
+if (existsSync(cacheDir)) {
+  const versions = readdirSync(cacheDir).filter(f => !f.startsWith('.'));
+  if (versions.length > 0) {
+    const targetDir = join(cacheDir, versions[0]);
+    console.log(`\nAuto-installing to cache: ${targetDir}`);
+    rmSync(targetDir, { recursive: true, force: true });
+    cpSync(PLUGIN_DIR, targetDir, { recursive: true });
+    console.log('  Cache updated — restart worker to apply.');
+  }
+}
+
+console.log(`\nBuild complete! (${FULL_VERSION})`);
