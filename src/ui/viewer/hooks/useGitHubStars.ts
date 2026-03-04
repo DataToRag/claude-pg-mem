@@ -30,9 +30,9 @@ export function useGitHubStars(username: string, repo: string): UseGitHubStarsRe
 
       const data: GitHubStarsData = await response.json();
       setStars(data.stargazers_count);
-    } catch (error) {
-      console.error('Failed to fetch GitHub stars:', error);
-      setError(error instanceof Error ? error : new Error('Unknown error'));
+    } catch (err) {
+      // Silently handle — repo may be private or not yet public
+      setError(err instanceof Error ? err : new Error('Unknown error'));
     } finally {
       setIsLoading(false);
     }

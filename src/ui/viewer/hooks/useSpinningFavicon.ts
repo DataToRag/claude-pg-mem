@@ -50,8 +50,11 @@ export function useSpinningFavicon(isProcessing: boolean) {
     };
 
     const animate = () => {
-      if (!image.complete) {
-        animationRef.current = requestAnimationFrame(animate);
+      if (!image.complete || image.naturalWidth === 0) {
+        // Image not loaded or broken — stop trying
+        if (!image.complete) {
+          animationRef.current = requestAnimationFrame(animate);
+        }
         return;
       }
 

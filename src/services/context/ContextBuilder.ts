@@ -113,10 +113,13 @@ export async function generateContext(
 ): Promise<string> {
   const config = loadContextConfig();
   const cwd = input?.cwd ?? process.cwd();
-  const project = getCurrentProjectName();
 
-  // Use provided projects array (for worktree support) or fall back to single project
-  const projects = input?.projects || [project];
+  // Use provided projects array (from hook's getProjectContext) or fall back to worker's cwd.
+  // The hook passes the correct project name based on the user's actual working directory,
+  // not the worker's cwd (which is always the claude-pg-memory repo).
+  const fallbackProject = getCurrentProjectName();
+  const projects = input?.projects || [fallbackProject];
+  const project = projects[0];
 
   try {
     const db = getDb();

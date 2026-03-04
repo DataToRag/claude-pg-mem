@@ -43,5 +43,29 @@ export function createContextRoutes(): Router {
     }
   }));
 
+  // GET /api/context/preview — Preview context for the viewer UI
+  router.get('/api/context/preview', asyncHandler(async (req: Request, res: Response) => {
+    const project = req.query.project as string | undefined;
+
+    if (!project) {
+      res.status(400).type('text/plain').send('Project parameter is required');
+      return;
+    }
+
+    logger.debug('HTTP', 'Context preview request', { project });
+
+    try {
+      const context = await generateContext(
+        { projects: [project] },
+        true, // useColors for terminal-style display
+      );
+
+      res.type('text/plain').send(context);
+    } catch (error) {
+      logger.error('HTTP', 'Context preview failed', {}, error as Error);
+      res.status(500).type('text/plain').send('Failed to generate context preview');
+    }
+  }));
+
   return router;
 }

@@ -132,6 +132,17 @@ if (existsSync(VIEWER_ENTRY)) {
   }
   console.log('  icons: copied');
 
+  // Copy logo image
+  const logoSrc = join(UI_DIR, 'claude-pg-mem-logomark.webp');
+  if (!existsSync(logoSrc)) {
+    // Try to copy from claude-mem if available
+    const claudeMemLogo = '/tmp/claude-mem/plugin/ui/claude-mem-logomark.webp';
+    if (existsSync(claudeMemLogo)) {
+      cpSync(claudeMemLogo, join(UI_DIR, 'claude-pg-mem-logomark.webp'));
+      console.log('  logo: copied from claude-mem');
+    }
+  }
+
   // Copy font files
   const fontsSrc = join(VIEWER_SRC, 'viewer', 'assets', 'fonts');
   const fontsDest = join(UI_DIR, 'assets', 'fonts');

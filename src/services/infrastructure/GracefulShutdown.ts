@@ -44,6 +44,15 @@ export interface GracefulShutdownConfig {
 export async function performGracefulShutdown(config: GracefulShutdownConfig): Promise<void> {
   logger.info('SYSTEM', 'Shutdown initiated');
 
+  // Safety net: force exit after 15s to prevent zombie processes
+  // If graceful shutdown hangs (e.g., Neon HTTP request in-flight),
+  // this ensures the process exits rather than becoming unkillable.
+  const forceExitTimer = setTimeout(() => {
+    logger.warn('SYSTEM', 'Graceful shutdown timed out after 15s, forcing exit');
+    process.exit(1);
+  }, 15_000);
+  forceExitTimer.unref(); // Don't keep event loop alive just for this
+
   // Clean up PID file on shutdown
   removePidFile();
 
@@ -74,6 +83,7 @@ export async function performGracefulShutdown(config: GracefulShutdownConfig): P
     await waitForProcessesExit(childPids, 5000);
   }
 
+  clearTimeout(forceExitTimer);
   logger.info('SYSTEM', 'Worker shutdown complete');
 }
 

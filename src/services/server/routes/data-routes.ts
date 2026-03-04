@@ -14,8 +14,9 @@
 
 import { Router, Request, Response } from 'express';
 import { desc, eq, sql, count } from 'drizzle-orm';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { dirname } from 'path';
+import { readFileSync, writeFileSync, existsSync, statSync } from 'fs';
+import { dirname, join } from 'path';
+import { homedir } from 'os';
 import { asyncHandler } from '../middleware.js';
 import { getDb } from '../../postgres/client.js';
 import { observations, sessionSummaries, userPrompts, sdkSessions } from '../../postgres/schema.js';
@@ -198,6 +199,43 @@ export function createDataRoutes(
   router.get('/api/settings', asyncHandler(async (_req: Request, res: Response) => {
     const merged = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
     res.json(merged);
+  }));
+
+  // GET /api/logs — Read today's log file
+  router.get('/api/logs', asyncHandler(async (req: Request, res: Response) => {
+    const maxLines = Math.min(10000, Math.max(1, parseInt(req.query.lines as string, 10) || 1000));
+    const date = new Date().toISOString().split('T')[0];
+    const logPath = join(homedir(), '.claude-pg-mem', 'logs', `claude-pg-mem-${date}.log`);
+
+    if (!existsSync(logPath)) {
+      res.json({ logs: '', path: logPath, exists: false, totalLines: 0, returnedLines: 0 });
+      return;
+    }
+
+    const content = readFileSync(logPath, 'utf-8');
+    const lines = content.split('\n');
+    const totalLines = lines.length;
+    const lastLines = lines.slice(-maxLines).join('\n');
+
+    res.json({
+      logs: lastLines,
+      path: logPath,
+      exists: true,
+      totalLines,
+      returnedLines: Math.min(maxLines, totalLines),
+    });
+  }));
+
+  // POST /api/logs/clear — Clear today's log file
+  router.post('/api/logs/clear', asyncHandler(async (_req: Request, res: Response) => {
+    const date = new Date().toISOString().split('T')[0];
+    const logPath = join(homedir(), '.claude-pg-mem', 'logs', `claude-pg-mem-${date}.log`);
+
+    if (existsSync(logPath)) {
+      writeFileSync(logPath, '', 'utf-8');
+    }
+
+    res.json({ ok: true, path: logPath });
   }));
 
   // POST /api/settings
