@@ -1,5 +1,5 @@
 {
-  "description": "Claude-pg-memory Postgres memory system hooks",
+  "description": "claude-pg-mem Postgres memory system hooks",
   "hooks": {
     "Setup": [
       {

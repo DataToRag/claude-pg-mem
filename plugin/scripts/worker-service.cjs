@@ -119,6 +119,7 @@ ${n.prompts.recording_focus}
 
 ${n.prompts.skip_guidance}
 
+
 ${n.prompts.output_format_header}
 
 \`\`\`xml
@@ -197,6 +198,7 @@ ${n.prompts.spatial_awareness}
 ${n.prompts.recording_focus}
 
 ${n.prompts.skip_guidance}
+
 
 ${n.prompts.continuation_instruction}
 
@@ -353,7 +355,7 @@ View Observations Live @ http://localhost:${s}`:void 0;return{hookSpecificOutput
 
 `).trim()),c}}return""}var Jy,UB=O(()=>{"use strict";Jy=require("fs")});var Gxe,kC,TC=O(()=>{"use strict";ai();gt();UB();Ms();Gxe=Rf(si.DEFAULT),kC={async execute(t){if(!await zn())return{continue:!0,suppressOutput:!0,exitCode:At.SUCCESS};let{sessionId:r,transcriptPath:n}=t,s=wr();if(!n)return M.debug("HOOK",`No transcriptPath in Stop hook input for session ${r} - skipping summary`),{continue:!0,suppressOutput:!0,exitCode:At.SUCCESS};let i=qB(n,"assistant",!0);return M.dataIn("HOOK","Stop: Requesting summary",{workerPort:s,hasLastAssistantMessage:!!i}),(await Mf(`http://127.0.0.1:${s}/api/sessions/summarize`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contentSessionId:r,last_assistant_message:i})},Gxe)).ok?(M.debug("HOOK","Summary request sent successfully"),{continue:!0,suppressOutput:!0}):{continue:!0,suppressOutput:!0}}}});var FB,$C,PC=O(()=>{"use strict";FB=require("path");ai();Ms();$C={async execute(t){if(!await zn())return{exitCode:At.SUCCESS};let r=wr(),n=(0,FB.basename)(t.cwd??process.cwd());try{let s=await fetch(`http://127.0.0.1:${r}/api/context/inject?project=${encodeURIComponent(n)}&colors=true`,{method:"GET"});if(!s.ok)return{exitCode:At.SUCCESS};let i=await s.text();process.stderr.write(`
 
-`+String.fromCodePoint(128221)+` Claude-PG-Memory Context Loaded
+`+String.fromCodePoint(128221)+` claude-pg-mem context loaded
 
 `+i+`
 

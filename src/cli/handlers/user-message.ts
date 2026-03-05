@@ -38,7 +38,7 @@ export const userMessageHandler: EventHandler = {
       process.stderr.write(
         '\n\n' +
           String.fromCodePoint(0x1f4dd) +
-          ' Claude-PG-Memory Context Loaded\n\n' +
+          ' claude-pg-mem context loaded\n\n' +
           output +
           '\n\n' +
           String.fromCodePoint(0x1f4a1) +

@@ -116,7 +116,7 @@ export async function generateContext(
 
   // Use provided projects array (from hook's getProjectContext) or fall back to worker's cwd.
   // The hook passes the correct project name based on the user's actual working directory,
-  // not the worker's cwd (which is always the claude-pg-memory repo).
+  // not the worker's cwd (which is always the claude-pg-mem repo).
   const fallbackProject = getCurrentProjectName();
   const projects = input?.projects || [fallbackProject];
   const project = projects[0];
