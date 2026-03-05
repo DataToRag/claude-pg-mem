@@ -156,19 +156,25 @@ if (existsSync(VIEWER_ENTRY)) {
 // Write build version to .install-version for cache invalidation
 writeFileSync(join(PLUGIN_DIR, '.install-version'), VERSION + '\n');
 
-// Auto-install: copy to Claude Code plugin cache so the running worker picks up changes
-const cacheDir = join(
-  process.env.HOME || process.env.USERPROFILE || '',
-  '.claude', 'plugins', 'cache', 'DataToRag', 'claude-pg-mem'
-);
+// Auto-install: sync plugin to all install locations so worker daemon finds it
+const HOME = process.env.HOME || process.env.USERPROFILE || '';
+
+// 1. CLI plugin path (~/.claude-pg-mem/cli/plugin/) — used by `claude-pg-mem start`
+const cliPluginDir = join(HOME, '.claude-pg-mem', 'cli', 'plugin');
+mkdirSync(cliPluginDir, { recursive: true });
+rmSync(cliPluginDir, { recursive: true, force: true });
+cpSync(PLUGIN_DIR, cliPluginDir, { recursive: true });
+console.log(`\nAuto-installed to CLI path: ${cliPluginDir}`);
+
+// 2. CC plugin cache (~/.claude/plugins/cache/...) — used by Claude Code hooks
+const cacheDir = join(HOME, '.claude', 'plugins', 'cache', 'DataToRag', 'claude-pg-mem');
 if (existsSync(cacheDir)) {
   const versions = readdirSync(cacheDir).filter(f => !f.startsWith('.'));
   if (versions.length > 0) {
     const targetDir = join(cacheDir, versions[0]);
-    console.log(`\nAuto-installing to cache: ${targetDir}`);
+    console.log(`Auto-installed to CC cache: ${targetDir}`);
     rmSync(targetDir, { recursive: true, force: true });
     cpSync(PLUGIN_DIR, targetDir, { recursive: true });
-    console.log('  Cache updated — restart worker to apply.');
   }
 }
 

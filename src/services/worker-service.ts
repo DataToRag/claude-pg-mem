@@ -316,7 +316,7 @@ export class WorkerService {
     cleanStalePidFile();
 
     // Find the bundled worker-service.cjs
-    // Plugin context: CLAUDE_PLUGIN_ROOT is set by Claude Code
+    // Plugin context: CLAUDE_PLUGIN_ROOT is set by Claude Code hooks
     // CLI context: derive from DATA_DIR (~/.claude-pg-mem/cli/plugin/)
     const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
       || path.join(DATA_DIR, 'cli', 'plugin');
