@@ -319,16 +319,10 @@ export class WorkerService {
     // In plugin context: use the bundled worker-service.cjs
     // In dev/dist context: use dist/index.js (CLI entry, handles --daemon)
     let workerScript: string;
-    if (process.env.CLAUDE_PLUGIN_ROOT) {
-      workerScript = path.join(process.env.CLAUDE_PLUGIN_ROOT, 'scripts', 'worker-service.cjs');
-    } else {
-      // Dev/dist context: resolve relative to this file
-      // Uses indirect eval to avoid esbuild CJS warnings about import.meta
-      const dir = typeof __dirname !== 'undefined'
-        ? __dirname
-        : path.dirname(new URL((0, eval)('import.meta.url')).pathname);
-      workerScript = path.join(dir, '..', 'index.js');
+    if (!process.env.CLAUDE_PLUGIN_ROOT) {
+      throw new Error('CLAUDE_PLUGIN_ROOT is not set — run via claude-pg-mem CLI or Claude Code plugin');
     }
+    workerScript = path.join(process.env.CLAUDE_PLUGIN_ROOT, 'scripts', 'worker-service.cjs');
 
     logger.info('SYSTEM', 'Spawning worker daemon', { port, script: workerScript });
 

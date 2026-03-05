@@ -9,17 +9,7 @@ import { join, dirname, basename } from 'path';
 import { homedir } from 'os';
 import { existsSync, mkdirSync } from 'fs';
 import { execSync } from 'child_process';
-import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
-
-// Get __dirname that works in both ESM and CJS contexts
-// Uses try/catch to avoid esbuild "import.meta not available in CJS" warnings
-function getDirname(): string {
-  if (typeof __dirname !== 'undefined') return __dirname;
-  try { return dirname(fileURLToPath((0, eval)('import.meta.url'))); } catch { return process.cwd(); }
-}
-
-const _dirname = getDirname();
 
 // Base directories
 export const DATA_DIR = process.env.CLAUDE_PG_MEM_DATA_DIR || join(homedir(), '.claude-pg-mem');
@@ -95,17 +85,14 @@ export function getCurrentProjectName(): string {
 }
 
 /**
- * Find package root directory
- *
- * In plugin context, CLAUDE_PLUGIN_ROOT is set by Claude Code.
- * In bundled .cjs, __dirname is plugin/scripts/, so parent is plugin/.
- * In dev (ESM from dist/shared/), go up two levels.
+ * Find package root directory.
+ * CLAUDE_PLUGIN_ROOT is always set by Claude Code in plugin context.
  */
 export function getPackageRoot(): string {
-  if (process.env.CLAUDE_PLUGIN_ROOT) {
-    return process.env.CLAUDE_PLUGIN_ROOT;
+  if (!process.env.CLAUDE_PLUGIN_ROOT) {
+    throw new Error('CLAUDE_PLUGIN_ROOT is not set — run via claude-pg-mem CLI or Claude Code plugin');
   }
-  return join(_dirname, '..');
+  return process.env.CLAUDE_PLUGIN_ROOT;
 }
 
 /**
