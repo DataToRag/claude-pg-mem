@@ -94,12 +94,12 @@ export async function install(): Promise<void> {
 
   console.log(`Installing claude-pg-mem v${version} as Claude Code plugin...\n`);
 
-  // Verify plugin source has bundled .cjs files
-  const workerCjs = join(pluginSource, 'scripts', 'worker-service.cjs');
+  // Verify plugin source has bundled script files
+  const workerMjs = join(pluginSource, 'scripts', 'worker-service.mjs');
   const mcpCjs = join(pluginSource, 'scripts', 'mcp-server.cjs');
-  if (!existsSync(workerCjs) || !existsSync(mcpCjs)) {
+  if (!existsSync(workerMjs) || !existsSync(mcpCjs)) {
     console.error('Error: Bundled plugin scripts not found.');
-    console.error('Run `pnpm run build:plugin` first to build the .cjs bundles.');
+    console.error('Run `pnpm run build:plugin` first to build the plugin bundles.');
     process.exit(1);
   }
 

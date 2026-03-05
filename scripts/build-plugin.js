@@ -40,14 +40,14 @@ const NATIVE_EXTERNALS = [
 ];
 
 // ── Build 1: Worker Service ──────────────────────────────────────────
-console.log('Building worker-service.cjs...');
+console.log('Building worker-service.mjs...');
 await build({
   entryPoints: [join(ROOT, 'src/index.ts')],
   bundle: true,
   platform: 'node',
   target: 'node22',
-  format: 'cjs',
-  outfile: join(SCRIPTS_DIR, 'worker-service.cjs'),
+  format: 'esm',
+  outfile: join(SCRIPTS_DIR, 'worker-service.mjs'),
   minify: true,
   banner: {},
   external: NATIVE_EXTERNALS,
@@ -58,10 +58,10 @@ await build({
   conditions: ['import', 'node', 'default'],
 });
 
-const workerPath = join(SCRIPTS_DIR, 'worker-service.cjs');
+const workerPath = join(SCRIPTS_DIR, 'worker-service.mjs');
 const workerSize = statSync(workerPath).size;
 chmodSync(workerPath, 0o755);
-console.log(`  worker-service.cjs: ${(workerSize / 1024).toFixed(0)} KB`);
+console.log(`  worker-service.mjs: ${(workerSize / 1024).toFixed(0)} KB`);
 
 // ── Build 2: MCP Server ─────────────────────────────────────────────
 console.log('Building mcp-server.cjs...');

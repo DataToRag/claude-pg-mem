@@ -35,7 +35,7 @@ const PID_FILE = path.join(DATA_DIR, 'worker.pid');
 
 // Orphaned process cleanup patterns and thresholds
 const ORPHAN_PROCESS_PATTERNS = [
-  'worker-service.cjs', // Background worker daemon
+  'worker-service.mjs', // Background worker daemon
 ];
 
 const ORPHAN_MAX_AGE_MINUTES = 30;
