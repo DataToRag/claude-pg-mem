@@ -44,6 +44,7 @@ ${mode.prompts.recording_focus}
 
 ${mode.prompts.skip_guidance}
 
+
 ${mode.prompts.output_format_header}
 
 \`\`\`xml
@@ -189,6 +190,7 @@ ${mode.prompts.spatial_awareness}
 ${mode.prompts.recording_focus}
 
 ${mode.prompts.skip_guidance}
+
 
 ${mode.prompts.continuation_instruction}
 

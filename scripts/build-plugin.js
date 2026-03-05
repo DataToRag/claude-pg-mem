@@ -9,7 +9,7 @@
  * Native deps are externalized and declared in plugin/package.json.
  */
 import { build } from 'esbuild';
-import { readFileSync, writeFileSync, chmodSync, statSync, mkdirSync, existsSync, cpSync, rmSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, chmodSync, statSync, mkdirSync, existsSync, cpSync, rmSync, readdirSync, realpathSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -158,23 +158,28 @@ writeFileSync(join(PLUGIN_DIR, '.install-version'), VERSION + '\n');
 
 // Auto-install: sync plugin to all install locations so worker daemon finds it
 const HOME = process.env.HOME || process.env.USERPROFILE || '';
+const realPluginDir = realpathSync(PLUGIN_DIR);
+
+function syncTo(targetDir, label) {
+  try {
+    // Skip if source and target are the same (e.g., running from ~/.claude-pg-mem/cli/)
+    if (existsSync(targetDir) && realpathSync(targetDir) === realPluginDir) return;
+  } catch { /* target doesn't exist yet, that's fine */ }
+  mkdirSync(targetDir, { recursive: true });
+  rmSync(targetDir, { recursive: true, force: true });
+  cpSync(PLUGIN_DIR, targetDir, { recursive: true });
+  console.log(`Auto-installed to ${label}: ${targetDir}`);
+}
 
 // 1. CLI plugin path (~/.claude-pg-mem/cli/plugin/) — used by `claude-pg-mem start`
-const cliPluginDir = join(HOME, '.claude-pg-mem', 'cli', 'plugin');
-mkdirSync(cliPluginDir, { recursive: true });
-rmSync(cliPluginDir, { recursive: true, force: true });
-cpSync(PLUGIN_DIR, cliPluginDir, { recursive: true });
-console.log(`\nAuto-installed to CLI path: ${cliPluginDir}`);
+syncTo(join(HOME, '.claude-pg-mem', 'cli', 'plugin'), 'CLI path');
 
 // 2. CC plugin cache (~/.claude/plugins/cache/...) — used by Claude Code hooks
 const cacheDir = join(HOME, '.claude', 'plugins', 'cache', 'DataToRag', 'claude-pg-mem');
 if (existsSync(cacheDir)) {
   const versions = readdirSync(cacheDir).filter(f => !f.startsWith('.'));
   if (versions.length > 0) {
-    const targetDir = join(cacheDir, versions[0]);
-    console.log(`Auto-installed to CC cache: ${targetDir}`);
-    rmSync(targetDir, { recursive: true, force: true });
-    cpSync(PLUGIN_DIR, targetDir, { recursive: true });
+    syncTo(join(cacheDir, versions[0]), 'CC cache');
   }
 }
 
