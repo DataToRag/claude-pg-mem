@@ -29,13 +29,12 @@ const VERSION = pkg.version;
 
 console.log(`Building claude-pg-mem plugin v${VERSION}...\n`);
 
-// Native dependencies that cannot be bundled (contain .node binaries or large WASM)
+// Dependencies that must stay external:
+// - @huggingface/transformers: ~8MB, dynamically loads ONNX runtime at startup
+// - onnxruntime-node: native .node addon loaded by transformers at runtime
 const NATIVE_EXTERNALS = [
   '@huggingface/transformers',
   'onnxruntime-node',
-  'onnxruntime-web',
-  'sharp',
-  'fsevents',
 ];
 
 // ── Build 1: Worker Service ──────────────────────────────────────────
