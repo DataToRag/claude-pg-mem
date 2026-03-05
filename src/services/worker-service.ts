@@ -20,7 +20,7 @@ import { readFileSync } from 'fs';
 import { logger } from '../utils/logger.js';
 import { getWorkerPort, getWorkerHost } from '../shared/worker-utils.js';
 import { SettingsDefaultsManager } from '../shared/SettingsDefaultsManager.js';
-import { USER_SETTINGS_PATH } from '../shared/paths.js';
+import { USER_SETTINGS_PATH, DATA_DIR } from '../shared/paths.js';
 import { getDb } from './postgres/client.js';
 import { resetStaleProcessingMessages } from './postgres/PendingMessageStore.js';
 
@@ -315,18 +315,18 @@ export class WorkerService {
     // Clean stale PID file
     cleanStalePidFile();
 
-    // Find the worker entry script
-    // In plugin context: use the bundled worker-service.cjs
-    // In dev/dist context: use dist/index.js (CLI entry, handles --daemon)
-    let workerScript: string;
-    if (!process.env.CLAUDE_PLUGIN_ROOT) {
-      throw new Error('CLAUDE_PLUGIN_ROOT is not set — run via claude-pg-mem CLI or Claude Code plugin');
-    }
-    workerScript = path.join(process.env.CLAUDE_PLUGIN_ROOT, 'scripts', 'worker-service.cjs');
+    // Find the bundled worker-service.cjs
+    // Plugin context: CLAUDE_PLUGIN_ROOT is set by Claude Code
+    // CLI context: derive from DATA_DIR (~/.claude-pg-mem/cli/plugin/)
+    const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
+      || path.join(DATA_DIR, 'cli', 'plugin');
+    const workerScript = path.join(pluginRoot, 'scripts', 'worker-service.cjs');
 
     logger.info('SYSTEM', 'Spawning worker daemon', { port, script: workerScript });
 
-    const childPid = spawnDaemon(workerScript, port);
+    const childPid = spawnDaemon(workerScript, port, {
+      CLAUDE_PLUGIN_ROOT: pluginRoot,
+    });
     if (childPid === undefined) {
       logger.error('SYSTEM', 'Failed to spawn worker daemon');
       return;

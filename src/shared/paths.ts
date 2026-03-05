@@ -86,13 +86,12 @@ export function getCurrentProjectName(): string {
 
 /**
  * Find package root directory.
- * CLAUDE_PLUGIN_ROOT is always set by Claude Code in plugin context.
+ * Plugin context: CLAUDE_PLUGIN_ROOT set by Claude Code.
+ * CLI context: derive from DATA_DIR (~/.claude-pg-mem/cli/plugin/).
  */
 export function getPackageRoot(): string {
-  if (!process.env.CLAUDE_PLUGIN_ROOT) {
-    throw new Error('CLAUDE_PLUGIN_ROOT is not set — run via claude-pg-mem CLI or Claude Code plugin');
-  }
-  return process.env.CLAUDE_PLUGIN_ROOT;
+  return process.env.CLAUDE_PLUGIN_ROOT
+    || join(DATA_DIR, 'cli', 'plugin');
 }
 
 /**
