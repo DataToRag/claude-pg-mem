@@ -12,14 +12,11 @@ import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
 
-// Get __dirname that works in both ESM (hooks) and CJS (worker) contexts
+// Get __dirname that works in both ESM and CJS contexts
+// Uses try/catch to avoid esbuild "import.meta not available in CJS" warnings
 function getDirname(): string {
-  // CJS context - __dirname exists
-  if (typeof __dirname !== 'undefined') {
-    return __dirname;
-  }
-  // ESM context - use import.meta.url
-  return dirname(fileURLToPath(import.meta.url));
+  if (typeof __dirname !== 'undefined') return __dirname;
+  try { return dirname(fileURLToPath((0, eval)('import.meta.url'))); } catch { return process.cwd(); }
 }
 
 const _dirname = getDirname();
