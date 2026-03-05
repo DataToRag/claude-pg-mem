@@ -326,6 +326,7 @@ async function handleStatus(): Promise<void> {
   console.log(`  Port:    ${info.port}`);
   if (info.version) console.log(`  Version: ${info.version}`);
   if (info.uptime) console.log(`  Uptime:  ${Math.round(info.uptime)}s`);
+  console.log(`  UI:      http://127.0.0.1:${info.port}`);
 }
 
 /**
