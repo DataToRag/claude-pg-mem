@@ -29,25 +29,24 @@ const VERSION = pkg.version;
 
 console.log(`Building claude-pg-mem plugin v${VERSION}...\n`);
 
-// Native dependencies that cannot be bundled (contain .node binaries)
+// Native dependencies that cannot be bundled (contain .node binaries or large WASM)
 const NATIVE_EXTERNALS = [
   '@huggingface/transformers',
   'onnxruntime-node',
   'onnxruntime-web',
   'sharp',
-  '@anthropic-ai/claude-agent-sdk',
   'fsevents',
 ];
 
 // ── Build 1: Worker Service ──────────────────────────────────────────
-console.log('Building worker-service.mjs...');
+console.log('Building worker-service.cjs...');
 await build({
   entryPoints: [join(ROOT, 'src/index.ts')],
   bundle: true,
   platform: 'node',
   target: 'node22',
-  format: 'esm',
-  outfile: join(SCRIPTS_DIR, 'worker-service.mjs'),
+  format: 'cjs',
+  outfile: join(SCRIPTS_DIR, 'worker-service.cjs'),
   minify: true,
   banner: {},
   external: NATIVE_EXTERNALS,
@@ -58,10 +57,10 @@ await build({
   conditions: ['import', 'node', 'default'],
 });
 
-const workerPath = join(SCRIPTS_DIR, 'worker-service.mjs');
+const workerPath = join(SCRIPTS_DIR, 'worker-service.cjs');
 const workerSize = statSync(workerPath).size;
 chmodSync(workerPath, 0o755);
-console.log(`  worker-service.mjs: ${(workerSize / 1024).toFixed(0)} KB`);
+console.log(`  worker-service.cjs: ${(workerSize / 1024).toFixed(0)} KB`);
 
 // ── Build 2: MCP Server ─────────────────────────────────────────────
 console.log('Building mcp-server.cjs...');

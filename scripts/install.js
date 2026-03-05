@@ -74,7 +74,7 @@ function install() {
   console.log(`Installing claude-pg-mem v${version} as Claude Code plugin...\n`);
 
   // 1. Verify plugin/scripts/ has the bundled script files
-  const workerMjs = join(PLUGIN_SOURCE, 'scripts', 'worker-service.mjs');
+  const workerMjs = join(PLUGIN_SOURCE, 'scripts', 'worker-service.cjs');
   const mcpCjs = join(PLUGIN_SOURCE, 'scripts', 'mcp-server.cjs');
   if (!existsSync(workerMjs) || !existsSync(mcpCjs)) {
     console.error('Error: Bundled plugin scripts not found.');

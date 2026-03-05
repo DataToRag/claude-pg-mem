@@ -95,7 +95,7 @@ export async function install(): Promise<void> {
   console.log(`Installing claude-pg-mem v${version} as Claude Code plugin...\n`);
 
   // Verify plugin source has bundled script files
-  const workerMjs = join(pluginSource, 'scripts', 'worker-service.mjs');
+  const workerMjs = join(pluginSource, 'scripts', 'worker-service.cjs');
   const mcpCjs = join(pluginSource, 'scripts', 'mcp-server.cjs');
   if (!existsSync(workerMjs) || !existsSync(mcpCjs)) {
     console.error('Error: Bundled plugin scripts not found.');
