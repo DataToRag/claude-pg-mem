@@ -36,7 +36,14 @@ export const summarizeHandler: EventHandler = {
     }
 
     // Extract last assistant message from transcript (the work Claude did)
-    const lastAssistantMessage = extractLastMessage(transcriptPath, 'assistant', true);
+    let lastAssistantMessage: string | undefined;
+    try {
+      lastAssistantMessage = extractLastMessage(transcriptPath, 'assistant', true);
+    } catch {
+      // Transcript file may not exist (e.g., worktree cleanup, /clear)
+      logger.debug('HOOK', `Could not read transcript for session ${sessionId}, skipping summary`);
+      return { continue: true, suppressOutput: true, exitCode: HOOK_EXIT_CODES.SUCCESS };
+    }
 
     logger.dataIn('HOOK', 'Stop: Requesting summary', {
       workerPort: port,
