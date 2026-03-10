@@ -123,6 +123,30 @@ export async function storeObservation(
 }
 
 // ---------------------------------------------------------------------------
+// Column selection — exclude embedding and search_vector from results
+// ---------------------------------------------------------------------------
+
+const observationColumns = {
+  id: observations.id,
+  memory_session_id: observations.memory_session_id,
+  project: observations.project,
+  text: observations.text,
+  type: observations.type,
+  title: observations.title,
+  subtitle: observations.subtitle,
+  facts: observations.facts,
+  narrative: observations.narrative,
+  concepts: observations.concepts,
+  files_read: observations.files_read,
+  files_modified: observations.files_modified,
+  prompt_number: observations.prompt_number,
+  discovery_tokens: observations.discovery_tokens,
+  content_hash: observations.content_hash,
+  created_at: observations.created_at,
+  created_at_epoch: observations.created_at_epoch,
+};
+
+// ---------------------------------------------------------------------------
 // Get
 // ---------------------------------------------------------------------------
 
@@ -134,7 +158,7 @@ export async function getObservation(
   id: number,
 ): Promise<ObservationRow | null> {
   const rows = await db
-    .select()
+    .select(observationColumns)
     .from(observations)
     .where(eq(observations.id, id))
     .limit(1);
@@ -152,7 +176,7 @@ export async function getObservationsByIds(
   if (ids.length === 0) return [];
 
   const rows = await db
-    .select()
+    .select(observationColumns)
     .from(observations)
     .where(inArray(observations.id, ids));
 
@@ -172,7 +196,7 @@ export async function getObservationsBySession(
   memorySessionId: string,
 ): Promise<ObservationRow[]> {
   const rows = await db
-    .select()
+    .select(observationColumns)
     .from(observations)
     .where(eq(observations.memory_session_id, memorySessionId))
     .orderBy(asc(observations.created_at_epoch));
@@ -193,7 +217,7 @@ export async function getRecentObservations(
   limit: number = 20,
 ): Promise<ObservationRow[]> {
   const rows = await db
-    .select()
+    .select(observationColumns)
     .from(observations)
     .where(eq(observations.project, project))
     .orderBy(desc(observations.created_at_epoch))
@@ -215,7 +239,7 @@ export async function getObservationsByFile(
 ): Promise<ObservationRow[]> {
   const pattern = `%${filePath}%`;
   const rows = await db
-    .select()
+    .select(observationColumns)
     .from(observations)
     .where(
       or(

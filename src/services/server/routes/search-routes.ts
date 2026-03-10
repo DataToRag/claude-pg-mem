@@ -20,9 +20,9 @@ import {
 import type { EmbedFn } from '../../../embeddings/index.js';
 
 /**
- * Format search results into MCP-compatible content blocks
+ * Format results into MCP-compatible content blocks
  */
-function formatSearchResults(result: any): { content: Array<{ type: 'text'; text: string }>; isError?: boolean } {
+function formatAsContent(result: any): { content: Array<{ type: 'text'; text: string }>; isError?: boolean } {
   return {
     content: [
       {
@@ -30,6 +30,98 @@ function formatSearchResults(result: any): { content: Array<{ type: 'text'; text
         text: JSON.stringify(result, null, 2),
       },
     ],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Progressive disclosure: shape results by tier to minimize context bloat
+// ---------------------------------------------------------------------------
+
+/** Search tier — compact index (~50-100 tokens/result) */
+function compactObservation(obs: any) {
+  return {
+    id: obs.id,
+    type: obs.type,
+    title: obs.title,
+    subtitle: obs.subtitle,
+    project: obs.project,
+    concepts: obs.concepts,
+    score: obs.score,
+    created_at_epoch: obs.created_at_epoch,
+  };
+}
+
+function compactSession(sess: any) {
+  return {
+    id: sess.id,
+    request: sess.request,
+    completed: sess.completed,
+    project: sess.project,
+    score: sess.score,
+    created_at_epoch: sess.created_at_epoch,
+  };
+}
+
+function compactPrompt(prompt: any) {
+  return {
+    id: prompt.id,
+    prompt_text: prompt.prompt_text,
+    prompt_number: prompt.prompt_number,
+    created_at_epoch: prompt.created_at_epoch,
+  };
+}
+
+/** Shape search results to compact index */
+function shapeSearchResults(result: any) {
+  return {
+    results: {
+      observations: (result.results?.observations ?? []).map(compactObservation),
+      sessions: (result.results?.sessions ?? []).map(compactSession),
+      prompts: (result.results?.prompts ?? []).map(compactPrompt),
+    },
+    strategy: result.strategy,
+  };
+}
+
+/** Timeline tier — moderate detail (~200-500 tokens total) */
+function timelineObservation(obs: any) {
+  return {
+    id: obs.id,
+    type: obs.type,
+    title: obs.title,
+    subtitle: obs.subtitle,
+    narrative: obs.narrative,
+    concepts: obs.concepts,
+    files_modified: obs.files_modified,
+    project: obs.project,
+    created_at_epoch: obs.created_at_epoch,
+  };
+}
+
+function shapeTimelineResults(result: any) {
+  return {
+    observations: (result.observations ?? []).map(timelineObservation),
+    sessions: result.sessions, // already compact from Timeline.ts
+    prompts: result.prompts,   // already compact from Timeline.ts
+  };
+}
+
+/** Get observations tier — full detail minus internal-only fields */
+function fullObservation(obs: any) {
+  return {
+    id: obs.id,
+    type: obs.type,
+    title: obs.title,
+    subtitle: obs.subtitle,
+    text: obs.text,
+    narrative: obs.narrative,
+    facts: obs.facts,
+    concepts: obs.concepts,
+    files_read: obs.files_read,
+    files_modified: obs.files_modified,
+    project: obs.project,
+    prompt_number: obs.prompt_number,
+    created_at_epoch: obs.created_at_epoch,
   };
 }
 
@@ -65,7 +157,7 @@ export function createSearchRoutes(embedFn?: EmbedFn): Router {
 
     try {
       const result = await getOrchestrator().search(params);
-      res.json(formatSearchResults(result));
+      res.json(formatAsContent(shapeSearchResults(result)));
     } catch (error) {
       logger.error('HTTP', 'Search failed', {}, error as Error);
       res.json({
@@ -104,7 +196,7 @@ export function createSearchRoutes(embedFn?: EmbedFn): Router {
         return;
       }
 
-      res.json(formatSearchResults(result));
+      res.json(formatAsContent(shapeTimelineResults(result)));
     } catch (error) {
       logger.error('HTTP', 'Timeline query failed', {}, error as Error);
       res.json({
@@ -149,7 +241,7 @@ export function createSearchRoutes(embedFn?: EmbedFn): Router {
         results = results.slice(0, limit);
       }
 
-      res.json(results);
+      res.json(results.map(fullObservation));
     } catch (error) {
       logger.error('HTTP', 'Batch observations failed', {}, error as Error);
       res.status(500).json({ error: 'Failed to fetch observations' });

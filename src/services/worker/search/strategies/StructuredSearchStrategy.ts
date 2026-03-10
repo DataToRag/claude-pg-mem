@@ -29,6 +29,45 @@ import {
 } from '../../../postgres/schema.js';
 import { logger } from '../../../../utils/logger.js';
 
+// Column selections — exclude embedding and search_vector from results
+const observationColumns = {
+  id: observations.id,
+  memory_session_id: observations.memory_session_id,
+  project: observations.project,
+  text: observations.text,
+  type: observations.type,
+  title: observations.title,
+  subtitle: observations.subtitle,
+  facts: observations.facts,
+  narrative: observations.narrative,
+  concepts: observations.concepts,
+  files_read: observations.files_read,
+  files_modified: observations.files_modified,
+  prompt_number: observations.prompt_number,
+  discovery_tokens: observations.discovery_tokens,
+  content_hash: observations.content_hash,
+  created_at: observations.created_at,
+  created_at_epoch: observations.created_at_epoch,
+};
+
+const sessionSummaryColumns = {
+  id: sessionSummaries.id,
+  memory_session_id: sessionSummaries.memory_session_id,
+  project: sessionSummaries.project,
+  request: sessionSummaries.request,
+  investigated: sessionSummaries.investigated,
+  learned: sessionSummaries.learned,
+  completed: sessionSummaries.completed,
+  next_steps: sessionSummaries.next_steps,
+  files_read: sessionSummaries.files_read,
+  files_edited: sessionSummaries.files_edited,
+  notes: sessionSummaries.notes,
+  prompt_number: sessionSummaries.prompt_number,
+  discovery_tokens: sessionSummaries.discovery_tokens,
+  created_at: sessionSummaries.created_at,
+  created_at_epoch: sessionSummaries.created_at_epoch,
+};
+
 export class StructuredSearchStrategy
   extends BaseSearchStrategy
   implements SearchStrategy
@@ -174,7 +213,7 @@ export class StructuredSearchStrategy
         : desc(observations.created_at_epoch);
 
     const rows = await this.db
-      .select()
+      .select(observationColumns)
       .from(observations)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(orderClause)
@@ -222,7 +261,7 @@ export class StructuredSearchStrategy
         : desc(sessionSummaries.created_at_epoch);
 
     const rows = await this.db
-      .select()
+      .select(sessionSummaryColumns)
       .from(sessionSummaries)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(orderClause)

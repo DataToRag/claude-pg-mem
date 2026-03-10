@@ -44,6 +44,49 @@ import type {
 } from './types.js';
 
 // ---------------------------------------------------------------------------
+// Column selections — exclude embedding and search_vector from results
+// These fields are large (768-dim vector, tsvector) and bloat context windows
+// ---------------------------------------------------------------------------
+
+const observationColumns = {
+  id: observations.id,
+  memory_session_id: observations.memory_session_id,
+  project: observations.project,
+  text: observations.text,
+  type: observations.type,
+  title: observations.title,
+  subtitle: observations.subtitle,
+  facts: observations.facts,
+  narrative: observations.narrative,
+  concepts: observations.concepts,
+  files_read: observations.files_read,
+  files_modified: observations.files_modified,
+  prompt_number: observations.prompt_number,
+  discovery_tokens: observations.discovery_tokens,
+  content_hash: observations.content_hash,
+  created_at: observations.created_at,
+  created_at_epoch: observations.created_at_epoch,
+};
+
+const sessionSummaryColumns = {
+  id: sessionSummaries.id,
+  memory_session_id: sessionSummaries.memory_session_id,
+  project: sessionSummaries.project,
+  request: sessionSummaries.request,
+  investigated: sessionSummaries.investigated,
+  learned: sessionSummaries.learned,
+  completed: sessionSummaries.completed,
+  next_steps: sessionSummaries.next_steps,
+  files_read: sessionSummaries.files_read,
+  files_edited: sessionSummaries.files_edited,
+  notes: sessionSummaries.notes,
+  prompt_number: sessionSummaries.prompt_number,
+  discovery_tokens: sessionSummaries.discovery_tokens,
+  created_at: sessionSummaries.created_at,
+  created_at_epoch: sessionSummaries.created_at_epoch,
+};
+
+// ---------------------------------------------------------------------------
 // Internal: build filter conditions
 // ---------------------------------------------------------------------------
 
@@ -168,25 +211,7 @@ export async function searchObservations(
 
     const rows = await db
       .select({
-        id: observations.id,
-        memory_session_id: observations.memory_session_id,
-        project: observations.project,
-        text: observations.text,
-        type: observations.type,
-        title: observations.title,
-        subtitle: observations.subtitle,
-        facts: observations.facts,
-        narrative: observations.narrative,
-        concepts: observations.concepts,
-        files_read: observations.files_read,
-        files_modified: observations.files_modified,
-        prompt_number: observations.prompt_number,
-        discovery_tokens: observations.discovery_tokens,
-        content_hash: observations.content_hash,
-        created_at: observations.created_at,
-        created_at_epoch: observations.created_at_epoch,
-        embedding: observations.embedding,
-        search_vector: observations.search_vector,
+        ...observationColumns,
         score: sql<number>`1 - (${observations.embedding} <=> ${vecLiteral}::vector)`,
       })
       .from(observations)
@@ -214,25 +239,7 @@ export async function searchObservations(
 
     const rows = await db
       .select({
-        id: observations.id,
-        memory_session_id: observations.memory_session_id,
-        project: observations.project,
-        text: observations.text,
-        type: observations.type,
-        title: observations.title,
-        subtitle: observations.subtitle,
-        facts: observations.facts,
-        narrative: observations.narrative,
-        concepts: observations.concepts,
-        files_read: observations.files_read,
-        files_modified: observations.files_modified,
-        prompt_number: observations.prompt_number,
-        discovery_tokens: observations.discovery_tokens,
-        content_hash: observations.content_hash,
-        created_at: observations.created_at,
-        created_at_epoch: observations.created_at_epoch,
-        embedding: observations.embedding,
-        search_vector: observations.search_vector,
+        ...observationColumns,
         rank: sql<number>`ts_rank(${observations.search_vector}, to_tsquery('english', ${tsQuery}))`,
       })
       .from(observations)
@@ -264,7 +271,7 @@ export async function searchObservations(
   }
 
   const rows = await db
-    .select()
+    .select(observationColumns)
     .from(observations)
     .where(and(...filterConditions))
     .orderBy(
@@ -300,23 +307,7 @@ export async function searchSessions(
 
     const rows = await db
       .select({
-        id: sessionSummaries.id,
-        memory_session_id: sessionSummaries.memory_session_id,
-        project: sessionSummaries.project,
-        request: sessionSummaries.request,
-        investigated: sessionSummaries.investigated,
-        learned: sessionSummaries.learned,
-        completed: sessionSummaries.completed,
-        next_steps: sessionSummaries.next_steps,
-        files_read: sessionSummaries.files_read,
-        files_edited: sessionSummaries.files_edited,
-        notes: sessionSummaries.notes,
-        prompt_number: sessionSummaries.prompt_number,
-        discovery_tokens: sessionSummaries.discovery_tokens,
-        created_at: sessionSummaries.created_at,
-        created_at_epoch: sessionSummaries.created_at_epoch,
-        embedding: sessionSummaries.embedding,
-        search_vector: sessionSummaries.search_vector,
+        ...sessionSummaryColumns,
         score: sql<number>`1 - (${sessionSummaries.embedding} <=> ${vecLiteral}::vector)`,
       })
       .from(sessionSummaries)
@@ -343,23 +334,7 @@ export async function searchSessions(
 
     const rows = await db
       .select({
-        id: sessionSummaries.id,
-        memory_session_id: sessionSummaries.memory_session_id,
-        project: sessionSummaries.project,
-        request: sessionSummaries.request,
-        investigated: sessionSummaries.investigated,
-        learned: sessionSummaries.learned,
-        completed: sessionSummaries.completed,
-        next_steps: sessionSummaries.next_steps,
-        files_read: sessionSummaries.files_read,
-        files_edited: sessionSummaries.files_edited,
-        notes: sessionSummaries.notes,
-        prompt_number: sessionSummaries.prompt_number,
-        discovery_tokens: sessionSummaries.discovery_tokens,
-        created_at: sessionSummaries.created_at,
-        created_at_epoch: sessionSummaries.created_at_epoch,
-        embedding: sessionSummaries.embedding,
-        search_vector: sessionSummaries.search_vector,
+        ...sessionSummaryColumns,
         rank: sql<number>`ts_rank(${sessionSummaries.search_vector}, to_tsquery('english', ${tsQuery}))`,
       })
       .from(sessionSummaries)
@@ -391,7 +366,7 @@ export async function searchSessions(
   }
 
   const rows = await db
-    .select()
+    .select(sessionSummaryColumns)
     .from(sessionSummaries)
     .where(and(...filterConditions))
     .orderBy(

@@ -69,6 +69,28 @@ export async function storeSummary(
 }
 
 // ---------------------------------------------------------------------------
+// Column selection — exclude embedding and search_vector from results
+// ---------------------------------------------------------------------------
+
+const summaryColumns = {
+  id: sessionSummaries.id,
+  memory_session_id: sessionSummaries.memory_session_id,
+  project: sessionSummaries.project,
+  request: sessionSummaries.request,
+  investigated: sessionSummaries.investigated,
+  learned: sessionSummaries.learned,
+  completed: sessionSummaries.completed,
+  next_steps: sessionSummaries.next_steps,
+  files_read: sessionSummaries.files_read,
+  files_edited: sessionSummaries.files_edited,
+  notes: sessionSummaries.notes,
+  prompt_number: sessionSummaries.prompt_number,
+  discovery_tokens: sessionSummaries.discovery_tokens,
+  created_at: sessionSummaries.created_at,
+  created_at_epoch: sessionSummaries.created_at_epoch,
+};
+
+// ---------------------------------------------------------------------------
 // Get
 // ---------------------------------------------------------------------------
 
@@ -80,7 +102,7 @@ export async function getSummary(
   memorySessionId: string,
 ): Promise<SessionSummaryRow | null> {
   const rows = await db
-    .select()
+    .select(summaryColumns)
     .from(sessionSummaries)
     .where(eq(sessionSummaries.memory_session_id, memorySessionId))
     .orderBy(desc(sessionSummaries.created_at_epoch))
@@ -97,7 +119,7 @@ export async function getSummaryById(
   id: number,
 ): Promise<SessionSummaryRow | null> {
   const rows = await db
-    .select()
+    .select(summaryColumns)
     .from(sessionSummaries)
     .where(eq(sessionSummaries.id, id))
     .limit(1);
@@ -118,7 +140,7 @@ export async function getRecentSummaries(
   limit: number = 10,
 ): Promise<SessionSummaryRow[]> {
   const rows = await db
-    .select()
+    .select(summaryColumns)
     .from(sessionSummaries)
     .where(eq(sessionSummaries.project, project))
     .orderBy(desc(sessionSummaries.created_at_epoch))

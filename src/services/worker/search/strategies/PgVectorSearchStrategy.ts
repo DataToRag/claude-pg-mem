@@ -201,12 +201,10 @@ export class PgVectorSearchStrategy
 
     // Convert distance to a normalized score (higher = better, 0-1 range)
     // Cosine distance ranges from 0 (identical) to 2 (opposite)
-    return rows.map(row => ({
+    return rows.map(({ distance, ...row }) => ({
       ...row,
-      embedding: null,
-      search_vector: null,
-      score: row.distance != null ? 1 - row.distance / 2 : undefined,
-      rank: row.distance ?? undefined,
+      score: distance != null ? 1 - distance / 2 : undefined,
+      rank: distance ?? undefined,
     })) as ObservationSearchResult[];
   }
 
@@ -254,12 +252,10 @@ export class PgVectorSearchStrategy
       )
       .limit(limit);
 
-    return rows.map(row => ({
+    return rows.map(({ distance, ...row }) => ({
       ...row,
-      embedding: null,
-      search_vector: null,
-      score: row.distance != null ? 1 - row.distance / 2 : undefined,
-      rank: row.distance ?? undefined,
+      score: distance != null ? 1 - distance / 2 : undefined,
+      rank: distance ?? undefined,
     })) as SessionSummarySearchResult[];
   }
 }
