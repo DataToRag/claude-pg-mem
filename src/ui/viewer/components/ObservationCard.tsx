@@ -4,6 +4,7 @@ import { formatDate } from '../utils/formatters';
 
 interface ObservationCardProps {
   observation: Observation;
+  compact?: boolean;
 }
 
 // Helper to strip project root from file paths
@@ -30,7 +31,7 @@ function stripProjectRoot(filePath: string): string {
   return parts.length > 3 ? parts.slice(-3).join('/') : filePath;
 }
 
-export function ObservationCard({ observation }: ObservationCardProps) {
+export function ObservationCard({ observation, compact = false }: ObservationCardProps) {
   const [showFacts, setShowFacts] = useState(false);
   const [showNarrative, setShowNarrative] = useState(false);
   const date = formatDate(observation.created_at_epoch);
@@ -54,68 +55,72 @@ export function ObservationCard({ observation }: ObservationCardProps) {
           </span>
           <span className="card-project">{observation.project}</span>
         </div>
-        <div className="view-mode-toggles">
-          {hasFactsContent && (
-            <button
-              className={`view-mode-toggle ${showFacts ? 'active' : ''}`}
-              onClick={() => {
-                setShowFacts(!showFacts);
-                if (!showFacts) setShowNarrative(false); // Turn off narrative when turning on facts
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 11 12 14 22 4"></polyline>
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-              </svg>
-              <span>facts</span>
-            </button>
-          )}
-          {observation.narrative && (
-            <button
-              className={`view-mode-toggle ${showNarrative ? 'active' : ''}`}
-              onClick={() => {
-                setShowNarrative(!showNarrative);
-                if (!showNarrative) setShowFacts(false); // Turn off facts when turning on narrative
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-              </svg>
-              <span>narrative</span>
-            </button>
-          )}
-        </div>
+        {!compact && (
+          <div className="view-mode-toggles">
+            {hasFactsContent && (
+              <button
+                className={`view-mode-toggle ${showFacts ? 'active' : ''}`}
+                onClick={() => {
+                  setShowFacts(!showFacts);
+                  if (!showFacts) setShowNarrative(false); // Turn off narrative when turning on facts
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 11 12 14 22 4"></polyline>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+                <span>facts</span>
+              </button>
+            )}
+            {observation.narrative && (
+              <button
+                className={`view-mode-toggle ${showNarrative ? 'active' : ''}`}
+                onClick={() => {
+                  setShowNarrative(!showNarrative);
+                  if (!showNarrative) setShowFacts(false); // Turn off facts when turning on narrative
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                <span>narrative</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Title */}
       <div className="card-title">{observation.title || 'Untitled'}</div>
 
-      {/* Content based on toggle state */}
-      <div className="view-mode-content">
-        {!showFacts && !showNarrative && observation.subtitle && (
-          <div className="card-subtitle">{observation.subtitle}</div>
-        )}
-        {showFacts && facts.length > 0 && (
-          <ul className="facts-list">
-            {facts.map((fact: string, i: number) => (
-              <li key={i}>{fact}</li>
-            ))}
-          </ul>
-        )}
-        {showNarrative && observation.narrative && (
-          <div className="narrative">
-            {observation.narrative}
-          </div>
-        )}
-      </div>
+      {/* Content based on toggle state (hidden in compact mode) */}
+      {!compact && (
+        <div className="view-mode-content">
+          {!showFacts && !showNarrative && observation.subtitle && (
+            <div className="card-subtitle">{observation.subtitle}</div>
+          )}
+          {showFacts && facts.length > 0 && (
+            <ul className="facts-list">
+              {facts.map((fact: string, i: number) => (
+                <li key={i}>{fact}</li>
+              ))}
+            </ul>
+          )}
+          {showNarrative && observation.narrative && (
+            <div className="narrative">
+              {observation.narrative}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Metadata footer - id, date, and conditionally concepts/files when facts toggle is on */}
+      {/* Metadata footer */}
       <div className="card-meta">
         <span className="meta-date">#{observation.id} • {date}</span>
-        {showFacts && (concepts.length > 0 || filesRead.length > 0 || filesModified.length > 0) && (
+        {!compact && showFacts && (concepts.length > 0 || filesRead.length > 0 || filesModified.length > 0) && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
             {concepts.map((concept: string, i: number) => (
               <span key={i} style={{

@@ -4,9 +4,10 @@ import { formatDate } from "../utils/formatters";
 
 interface SummaryCardProps {
   summary: Summary;
+  compact?: boolean;
 }
 
-export function SummaryCard({ summary }: SummaryCardProps) {
+export function SummaryCard({ summary, compact = false }: SummaryCardProps) {
   const date = formatDate(summary.created_at_epoch);
 
   const sections = [
@@ -28,27 +29,29 @@ export function SummaryCard({ summary }: SummaryCardProps) {
         )}
       </header>
 
-      <div className="summary-sections">
-        {sections.map((section, index) => (
-          <section
-            key={section.key}
-            className="summary-section"
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            <div className="summary-section-header">
-              <img
-                src={section.icon}
-                alt={section.label}
-                className={`summary-section-icon summary-section-icon--${section.key}`}
-              />
-              <h3 className="summary-section-label">{section.label}</h3>
-            </div>
-            <div className="summary-section-content">
-              {section.content}
-            </div>
-          </section>
-        ))}
-      </div>
+      {!compact && (
+        <div className="summary-sections">
+          {sections.map((section, index) => (
+            <section
+              key={section.key}
+              className="summary-section"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              <div className="summary-section-header">
+                <img
+                  src={section.icon}
+                  alt={section.label}
+                  className={`summary-section-icon summary-section-icon--${section.key}`}
+                />
+                <h3 className="summary-section-label">{section.label}</h3>
+              </div>
+              <div className="summary-section-content">
+                {section.content}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
 
       <footer className="summary-card-footer">
         <span className="summary-meta-id">Session #{summary.id}</span>

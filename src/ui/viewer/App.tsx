@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Header } from './components/Header';
 import { Feed } from './components/Feed';
+import { ProjectsBoard } from './components/ProjectsBoard';
 import { ContextSettingsModal } from './components/ContextSettingsModal';
 import { LogsDrawer } from './components/LogsModal';
 import { useSSE } from './hooks/useSSE';
@@ -10,8 +11,10 @@ import { usePagination } from './hooks/usePagination';
 import { useTheme } from './hooks/useTheme';
 import { Observation, Summary, UserPrompt } from './types';
 import { mergeAndDeduplicateByProject } from './utils/data';
+import type { ViewMode } from './components/ViewToggle';
 
 export function App() {
+  const [viewMode, setViewMode] = useState<ViewMode>('feed');
   const [currentFilter, setCurrentFilter] = useState('');
   const [contextPreviewOpen, setContextPreviewOpen] = useState(false);
   const [logsModalOpen, setLogsModalOpen] = useState(false);
@@ -49,6 +52,20 @@ export function App() {
     }
     return mergeAndDeduplicateByProject(prompts, paginatedPrompts);
   }, [prompts, paginatedPrompts, currentFilter]);
+
+  // Handle view mode changes
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    if (mode === 'projects') {
+      setCurrentFilter(''); // Board shows all projects
+    }
+    setViewMode(mode);
+  }, []);
+
+  // Navigate from board to feed filtered by project
+  const handleViewProjectInFeed = useCallback((project: string) => {
+    setCurrentFilter(project);
+    setViewMode('feed');
+  }, []);
 
   // Toggle context preview modal
   const toggleContextPreview = useCallback(() => {
@@ -104,16 +121,27 @@ export function App() {
         themePreference={preference}
         onThemeChange={setThemePreference}
         onContextPreviewToggle={toggleContextPreview}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
       />
 
-      <Feed
-        observations={allObservations}
-        summaries={allSummaries}
-        prompts={allPrompts}
-        onLoadMore={handleLoadMore}
-        isLoading={pagination.observations.isLoading || pagination.summaries.isLoading || pagination.prompts.isLoading}
-        hasMore={pagination.observations.hasMore || pagination.summaries.hasMore || pagination.prompts.hasMore}
-      />
+      {viewMode === 'feed' ? (
+        <Feed
+          observations={allObservations}
+          summaries={allSummaries}
+          prompts={allPrompts}
+          onLoadMore={handleLoadMore}
+          isLoading={pagination.observations.isLoading || pagination.summaries.isLoading || pagination.prompts.isLoading}
+          hasMore={pagination.observations.hasMore || pagination.summaries.hasMore || pagination.prompts.hasMore}
+        />
+      ) : (
+        <ProjectsBoard
+          projects={projects}
+          observations={observations}
+          summaries={summaries}
+          onViewProjectInFeed={handleViewProjectInFeed}
+        />
+      )}
 
       <ContextSettingsModal
         isOpen={contextPreviewOpen}

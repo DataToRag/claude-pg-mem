@@ -1,5 +1,6 @@
 import React from 'react';
 import { ThemeToggle } from './ThemeToggle';
+import { ViewToggle, type ViewMode } from './ViewToggle';
 import { ThemePreference } from '../hooks/useTheme';
 import { GitHubStarsButton } from './GitHubStarsButton';
 import { useSpinningFavicon } from '../hooks/useSpinningFavicon';
@@ -14,6 +15,8 @@ interface HeaderProps {
   themePreference: ThemePreference;
   onThemeChange: (theme: ThemePreference) => void;
   onContextPreviewToggle: () => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
 export function Header({
@@ -25,7 +28,9 @@ export function Header({
   queueDepth,
   themePreference,
   onThemeChange,
-  onContextPreviewToggle
+  onContextPreviewToggle,
+  viewMode,
+  onViewModeChange,
 }: HeaderProps) {
   useSpinningFavicon(isProcessing);
 
@@ -78,15 +83,18 @@ export function Header({
           </svg>
         </a>
         <GitHubStarsButton username="DataToRag" repo="claude-pg-mem" />
-        <select
-          value={currentFilter}
-          onChange={e => onFilterChange(e.target.value)}
-        >
-          <option value="">All Projects</option>
-          {projects.map(project => (
-            <option key={project} value={project}>{project}</option>
-          ))}
-        </select>
+        <ViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+        {viewMode === 'feed' && (
+          <select
+            value={currentFilter}
+            onChange={e => onFilterChange(e.target.value)}
+          >
+            <option value="">All Projects</option>
+            {projects.map(project => (
+              <option key={project} value={project}>{project}</option>
+            ))}
+          </select>
+        )}
         <ThemeToggle
           preference={themePreference}
           onThemeChange={onThemeChange}
