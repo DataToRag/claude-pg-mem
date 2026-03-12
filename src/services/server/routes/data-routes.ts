@@ -252,7 +252,19 @@ export function createDataRoutes(
       mkdirSync(dir, { recursive: true });
     }
 
-    writeFileSync(USER_SETTINGS_PATH, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
+    // Merge with existing settings to preserve keys not managed by the viewer
+    // (e.g. DATABASE_URL, MODE, MAX_CONCURRENT_AGENTS)
+    let existing: Record<string, string> = {};
+    try {
+      if (existsSync(USER_SETTINGS_PATH)) {
+        existing = JSON.parse(readFileSync(USER_SETTINGS_PATH, 'utf-8'));
+      }
+    } catch {
+      // If existing file is corrupt, start fresh
+    }
+    const merged = { ...existing, ...settings };
+
+    writeFileSync(USER_SETTINGS_PATH, JSON.stringify(merged, null, 2) + '\n', 'utf-8');
     res.json({ ok: true });
   }));
 
