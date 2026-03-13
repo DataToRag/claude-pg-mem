@@ -1,9 +1,8 @@
 {
   "mcpServers": {
     "claude-pg-mem": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/mcp-server.cjs"]
+      "type": "url",
+      "url": "http://127.0.0.1:37778/mcp"
     }
   }
 }

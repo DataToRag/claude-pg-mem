@@ -67,5 +67,14 @@ export function createHealthRoutes(): Router {
     });
   }));
 
+  // Shutdown endpoint — triggers graceful shutdown via SIGTERM to self
+  // Called by `claude-pg-mem stop` via httpShutdown()
+  router.post('/api/admin/shutdown', (_req: Request, res: Response) => {
+    res.json({ status: 'shutting_down' });
+    // Send SIGTERM to self after response is flushed — this triggers
+    // the existing signal handler which runs performGracefulShutdown()
+    setTimeout(() => process.kill(process.pid, 'SIGTERM'), 100);
+  });
+
   return router;
 }

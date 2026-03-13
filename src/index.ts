@@ -49,6 +49,10 @@ async function main(): Promise<void> {
       await handleStatus();
       break;
 
+    case 'logs':
+      await handleLogs(args);
+      break;
+
     case 'install': {
       const { install } = await import('./installer/index.js');
       await install();
@@ -300,7 +304,24 @@ async function handleDb(dbArgs: string[]): Promise<void> {
 async function handleStart(): Promise<void> {
   ensureAllDataDirs();
   const { WorkerService } = await import('./services/worker-service.js');
+
+  const before = await WorkerService.status();
+  if (before.running) {
+    console.log(`Worker already running (PID ${before.pid}, port ${before.port})`);
+    return;
+  }
+
+  console.log(`Starting worker on port ${before.port}...`);
   await WorkerService.start();
+
+  const after = await WorkerService.status();
+  if (after.running) {
+    console.log(`Worker started (PID ${after.pid}, port ${after.port})`);
+    console.log(`  UI: http://127.0.0.1:${after.port}`);
+  } else {
+    console.error(`Worker failed to start. Check logs: ~/.claude-pg-mem/logs/`);
+    process.exit(1);
+  }
 }
 
 /**
@@ -308,7 +329,23 @@ async function handleStart(): Promise<void> {
  */
 async function handleStop(): Promise<void> {
   const { WorkerService } = await import('./services/worker-service.js');
+
+  const before = await WorkerService.status();
+  if (!before.running) {
+    console.log(`Worker not running (port ${before.port})`);
+    return;
+  }
+
+  console.log(`Stopping worker (PID ${before.pid}, port ${before.port})...`);
   await WorkerService.stop();
+
+  const after = await WorkerService.status();
+  if (!after.running) {
+    console.log('Worker stopped');
+  } else {
+    console.error('Worker failed to stop cleanly');
+    process.exit(1);
+  }
 }
 
 /**
@@ -330,6 +367,58 @@ async function handleStatus(): Promise<void> {
 }
 
 /**
+ * Show recent logs, optionally filtered to errors/warnings
+ */
+async function handleLogs(logArgs: string[]): Promise<void> {
+  const { existsSync, readdirSync, readFileSync } = await import('fs');
+  const { join } = await import('path');
+  const { LOGS_DIR } = await import('./shared/paths.js');
+
+  if (!existsSync(LOGS_DIR)) {
+    console.log('No logs directory found');
+    return;
+  }
+
+  const errorsOnly = logArgs.includes('--errors') || logArgs.includes('-e');
+  const numLines = (() => {
+    const nIdx = logArgs.indexOf('-n');
+    if (nIdx !== -1 && logArgs[nIdx + 1]) return parseInt(logArgs[nIdx + 1], 10);
+    return errorsOnly ? 100 : 50;
+  })();
+
+  // Find the most recent log file
+  const logFiles = readdirSync(LOGS_DIR)
+    .filter(f => f.startsWith('claude-pg-mem-') && f.endsWith('.log'))
+    .sort()
+    .reverse();
+
+  if (logFiles.length === 0) {
+    console.log('No log files found');
+    return;
+  }
+
+  const logFile = join(LOGS_DIR, logFiles[0]);
+  const content = readFileSync(logFile, 'utf-8');
+  let lines = content.split('\n').filter(l => l.length > 0);
+
+  if (errorsOnly) {
+    lines = lines.filter(l => l.includes('[ERROR]') || l.includes('[WARN ]'));
+  }
+
+  const tail = lines.slice(-numLines);
+
+  console.log(`${logFiles[0]}${errorsOnly ? ' (errors/warnings only)' : ''}:`);
+  console.log('');
+  for (const line of tail) {
+    console.log(line);
+  }
+
+  if (lines.length > numLines) {
+    console.log(`\n... ${lines.length - numLines} more lines (use -n <count> to show more)`);
+  }
+}
+
+/**
  * Print usage information
  */
 function printUsage(): void {
@@ -345,6 +434,7 @@ Commands:
   stop        Stop the worker service
   restart     Restart the worker service
   status      Show worker status
+  logs        Show recent logs (--errors for errors only, -n <count>)
   install     Register as Claude Code plugin
   uninstall   Remove Claude Code plugin
   mcp         Start MCP server (stdio mode, for Claude Code)

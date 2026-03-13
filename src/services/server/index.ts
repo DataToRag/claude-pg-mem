@@ -20,6 +20,7 @@ import { createContextRoutes } from './routes/context-routes.js';
 import { createSessionRoutes } from './routes/session-routes.js';
 import { createSearchRoutes } from './routes/search-routes.js';
 import { createDataRoutes } from './routes/data-routes.js';
+import { createMcpRoutes } from './routes/mcp-routes.js';
 import { createViewerRoutes } from './routes/viewer-routes.js';
 import { SessionManager } from './SessionManager.js';
 import { SSEBroadcaster } from '../worker/SSEBroadcaster.js';
@@ -71,6 +72,7 @@ export function createServer(config: ServerConfig): ServerInstance {
   app.use(createSessionRoutes(config.sessionManager));
   app.use(createSearchRoutes(config.embedFn));
   app.use(createDataRoutes(config.sessionManager, sseBroadcaster));
+  app.use(createMcpRoutes());
 
   // -----------------------------------------------------------------------
   // Viewer routes (serves HTML at / — must be after API routes)
