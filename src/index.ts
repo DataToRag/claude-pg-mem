@@ -257,7 +257,7 @@ async function handleConfig(configArgs: string[]): Promise<void> {
       console.error('');
       console.error('Keys can use shorthand (omit CLAUDE_PG_MEM_ prefix):');
       console.error('  DATABASE_URL, WORKER_PORT, LOG_LEVEL, etc.');
-      process.exit(subcommand ? 1 : 1);
+      process.exit(1);
   }
 }
 
@@ -359,18 +359,8 @@ function parseFlags(args: string[]): { flags: Record<string, string>; positional
  * Handle query subcommands: search, recent, projects, stats, timeline
  */
 async function handleQuery(subcommand: string, queryArgs: string[]): Promise<void> {
-  const { getWorkerPort } = await import('./shared/worker-utils.js');
-  const port = getWorkerPort();
-  const base = `http://127.0.0.1:${port}`;
-
-  // Check worker is up
-  try {
-    const health = await fetch(`${base}/health`);
-    if (!health.ok) throw new Error();
-  } catch {
-    console.error('Worker is not running. Start it with: claude-pg-mem start');
-    process.exit(1);
-  }
+  const { getWorkerPort, getWorkerHost } = await import('./shared/worker-utils.js');
+  const base = `http://${getWorkerHost()}:${getWorkerPort()}`;
 
   const { flags, positional } = parseFlags(queryArgs);
   const limit = flags.limit || flags.n || '';
@@ -387,13 +377,9 @@ async function handleQuery(subcommand: string, queryArgs: string[]): Promise<voi
       if (flags['obs-type']) params.set('obs_type', flags['obs-type']);
       if (flags.since) params.set('dateStart', flags.since);
       if (flags.until) params.set('dateEnd', flags.until);
-      params.set('orderBy', flags.order || 'date_desc');
+      if (flags.order) params.set('orderBy', flags.order);
 
-      const res = await fetch(`${base}/api/search?${params}`);
-      const data = await res.json() as { content?: Array<{ text: string }>; results?: unknown };
-      // API wraps in { content: [{ text: JSON }] } where text contains { results: ... }
-      const parsed = data.content?.[0]?.text ? JSON.parse(data.content[0].text) : data;
-      const results = parsed.results || parsed;
+      const results = unwrapMcpResponse(await fetchWorker(`${base}/api/search?${params}`));
 
       if (results.observations?.length) {
         console.log(`\nObservations (${results.observations.length}):\n`);
@@ -414,7 +400,7 @@ async function handleQuery(subcommand: string, queryArgs: string[]): Promise<voi
         }
         console.log('');
       }
-      if (!results.observations?.length && !results.sessions?.length && !results.prompts?.length) {
+      if (!results.observations?.length && !results.sessions?.length) {
         console.log('No results found.');
       }
       if (results.strategy) console.log(dim(`Strategy: ${results.strategy}`));
@@ -424,11 +410,9 @@ async function handleQuery(subcommand: string, queryArgs: string[]): Promise<voi
     case 'recent': {
       const params = new URLSearchParams();
       params.set('limit', limit || '15');
-      params.set('sort', 'desc');
       if (project) params.set('project', project);
 
-      const res = await fetch(`${base}/api/observations?${params}`);
-      const data = await res.json() as { items: Array<{ id: number; type: string; title: string; project: string; created_at: string }> };
+      const data = await fetchWorker(`${base}/api/observations?${params}`);
 
       if (!data.items?.length) {
         console.log('No observations found.');
@@ -455,9 +439,8 @@ async function handleQuery(subcommand: string, queryArgs: string[]): Promise<voi
     }
 
     case 'projects': {
-      const res = await fetch(`${base}/api/projects`);
-      const raw = await res.json() as { projects?: string[] } | string[];
-      const list = Array.isArray(raw) ? raw : (raw.projects || []);
+      const data = await fetchWorker(`${base}/api/projects`);
+      const list = Array.isArray(data) ? data : (data.projects || []);
       if (!list.length) {
         console.log('No projects found.');
         break;
@@ -471,8 +454,7 @@ async function handleQuery(subcommand: string, queryArgs: string[]): Promise<voi
     }
 
     case 'stats': {
-      const res = await fetch(`${base}/api/stats`);
-      const data = await res.json() as Record<string, unknown>;
+      const data = await fetchWorker(`${base}/api/stats`);
       console.log(`\nWorker Stats:\n`);
       printObject(data, 1);
       console.log('');
@@ -492,9 +474,7 @@ async function handleQuery(subcommand: string, queryArgs: string[]): Promise<voi
         process.exit(1);
       }
 
-      const res = await fetch(`${base}/api/timeline?${params}`);
-      const data = await res.json() as { content?: Array<{ text: string }>; observations?: unknown };
-      const results = data.content?.[0]?.text ? JSON.parse(data.content[0].text) : data;
+      const results = unwrapMcpResponse(await fetchWorker(`${base}/api/timeline?${params}`));
 
       if (results.observations?.length) {
         console.log('');
@@ -513,6 +493,35 @@ async function handleQuery(subcommand: string, queryArgs: string[]): Promise<voi
   }
 }
 
+/**
+ * Fetch JSON from worker, with friendly error on connection failure.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchWorker(url: string): Promise<any> {
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch {
+    console.error('Worker is not running. Start it with: claude-pg-mem start');
+    process.exit(1);
+  }
+  return res.json();
+}
+
+/**
+ * Unwrap MCP-style { content: [{ text: JSON }] } responses.
+ * Returns the inner results object, or the data as-is if not wrapped.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function unwrapMcpResponse(data: any): any {
+  try {
+    const parsed = data?.content?.[0]?.text ? JSON.parse(data.content[0].text) : data;
+    return parsed.results || parsed;
+  } catch {
+    return data;
+  }
+}
+
 function dim(text: string): string {
   return `\x1b[2m${text}\x1b[0m`;
 }
@@ -527,6 +536,8 @@ function printObject(obj: Record<string, unknown>, indent: number): void {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       console.log(`${pad}${key}:`);
       printObject(value as Record<string, unknown>, indent + 1);
+    } else if (Array.isArray(value)) {
+      console.log(`${pad}${key}: [${value.join(', ')}]`);
     } else {
       console.log(`${pad}${key}: ${value}`);
     }

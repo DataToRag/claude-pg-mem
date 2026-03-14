@@ -174,13 +174,10 @@ function syncTo(targetDir, label) {
 // 0. CLI dist path (~/.claude-pg-mem/cli/dist/) — used by `claude-pg-mem` CLI commands
 const cliDistSrc = join(ROOT, 'dist');
 const cliDistDest = join(HOME, '.claude-pg-mem', 'cli', 'dist');
-if (existsSync(cliDistSrc) && existsSync(cliDistDest)) {
-  try {
-    if (realpathSync(cliDistSrc) !== realpathSync(cliDistDest)) {
-      cpSync(cliDistSrc, cliDistDest, { recursive: true });
-      console.log(`Synced CLI dist → ${cliDistDest}`);
-    }
-  } catch { /* dest doesn't exist, skip */ }
+if (existsSync(cliDistSrc) && existsSync(cliDistDest) &&
+    realpathSync(cliDistSrc) !== realpathSync(cliDistDest)) {
+  cpSync(cliDistSrc, cliDistDest, { recursive: true });
+  console.log(`Synced CLI dist → ${cliDistDest}`);
 }
 
 // 1. CLI plugin path (~/.claude-pg-mem/cli/plugin/) — used by `claude-pg-mem start`
