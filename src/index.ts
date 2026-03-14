@@ -82,6 +82,31 @@ async function main(): Promise<void> {
       break;
     }
 
+    case 'search': {
+      await handleQuery('search', args);
+      break;
+    }
+
+    case 'recent': {
+      await handleQuery('recent', args);
+      break;
+    }
+
+    case 'projects': {
+      await handleQuery('projects', args);
+      break;
+    }
+
+    case 'stats': {
+      await handleQuery('stats', args);
+      break;
+    }
+
+    case 'timeline': {
+      await handleQuery('timeline', args);
+      break;
+    }
+
     case 'hook': {
       // Hook mode: claude-pg-mem hook <platform> <event>
       const [platform, event] = args;
@@ -299,6 +324,216 @@ async function handleDb(dbArgs: string[]): Promise<void> {
 }
 
 /**
+ * Parse CLI flags from args array.
+ * Supports --flag value and --flag=value forms.
+ */
+function parseFlags(args: string[]): { flags: Record<string, string>; positional: string[] } {
+  const flags: Record<string, string> = {};
+  const positional: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg.startsWith('--')) {
+      const eqIdx = arg.indexOf('=');
+      if (eqIdx !== -1) {
+        flags[arg.slice(2, eqIdx)] = arg.slice(eqIdx + 1);
+      } else if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
+        flags[arg.slice(2)] = args[++i];
+      } else {
+        flags[arg.slice(2)] = 'true';
+      }
+    } else if (arg.startsWith('-') && arg.length === 2) {
+      // Short flags: -n 10, -p project
+      if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
+        flags[arg.slice(1)] = args[++i];
+      } else {
+        flags[arg.slice(1)] = 'true';
+      }
+    } else {
+      positional.push(arg);
+    }
+  }
+  return { flags, positional };
+}
+
+/**
+ * Handle query subcommands: search, recent, projects, stats, timeline
+ */
+async function handleQuery(subcommand: string, queryArgs: string[]): Promise<void> {
+  const { getWorkerPort } = await import('./shared/worker-utils.js');
+  const port = getWorkerPort();
+  const base = `http://127.0.0.1:${port}`;
+
+  // Check worker is up
+  try {
+    const health = await fetch(`${base}/health`);
+    if (!health.ok) throw new Error();
+  } catch {
+    console.error('Worker is not running. Start it with: claude-pg-mem start');
+    process.exit(1);
+  }
+
+  const { flags, positional } = parseFlags(queryArgs);
+  const limit = flags.limit || flags.n || '';
+  const project = flags.project || flags.p || '';
+
+  switch (subcommand) {
+    case 'search': {
+      const query = positional.join(' ');
+      const params = new URLSearchParams();
+      if (query) params.set('query', query);
+      if (project) params.set('project', project);
+      if (limit) params.set('limit', limit);
+      if (flags.type) params.set('type', flags.type);
+      if (flags['obs-type']) params.set('obs_type', flags['obs-type']);
+      if (flags.since) params.set('dateStart', flags.since);
+      if (flags.until) params.set('dateEnd', flags.until);
+      params.set('orderBy', flags.order || 'date_desc');
+
+      const res = await fetch(`${base}/api/search?${params}`);
+      const data = await res.json() as { content?: Array<{ text: string }>; results?: unknown };
+      // API wraps in { content: [{ text: JSON }] } where text contains { results: ... }
+      const parsed = data.content?.[0]?.text ? JSON.parse(data.content[0].text) : data;
+      const results = parsed.results || parsed;
+
+      if (results.observations?.length) {
+        console.log(`\nObservations (${results.observations.length}):\n`);
+        for (const obs of results.observations) {
+          const date = new Date(obs.created_at_epoch).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const typeTag = (obs.type || '').padEnd(10);
+          console.log(`  #${String(obs.id).padEnd(5)} ${date.padEnd(7)} ${typeTag} ${obs.project || ''}`);
+          console.log(`         ${obs.title}`);
+          if (obs.subtitle) console.log(`         ${dim(obs.subtitle)}`);
+          console.log('');
+        }
+      }
+      if (results.sessions?.length) {
+        console.log(`Sessions (${results.sessions.length}):\n`);
+        for (const s of results.sessions) {
+          const date = new Date(s.created_at_epoch).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          console.log(`  ${date}  ${s.project || ''}  ${(s.request || '').slice(0, 80)}`);
+        }
+        console.log('');
+      }
+      if (!results.observations?.length && !results.sessions?.length && !results.prompts?.length) {
+        console.log('No results found.');
+      }
+      if (results.strategy) console.log(dim(`Strategy: ${results.strategy}`));
+      break;
+    }
+
+    case 'recent': {
+      const params = new URLSearchParams();
+      params.set('limit', limit || '15');
+      params.set('sort', 'desc');
+      if (project) params.set('project', project);
+
+      const res = await fetch(`${base}/api/observations?${params}`);
+      const data = await res.json() as { items: Array<{ id: number; type: string; title: string; project: string; created_at: string }> };
+
+      if (!data.items?.length) {
+        console.log('No observations found.');
+        break;
+      }
+
+      console.log('');
+      let lastDate = '';
+      for (const obs of data.items) {
+        const date = obs.created_at.slice(0, 10);
+        if (date !== lastDate) {
+          if (lastDate) console.log('');
+          console.log(bold(date));
+          lastDate = date;
+        }
+        const typeTag = (obs.type || '').padEnd(10);
+        console.log(`  #${String(obs.id).padEnd(5)} ${typeTag} ${(obs.project || '').padEnd(22)} ${obs.title.slice(0, 60)}`);
+      }
+      console.log('');
+      if (data.items.length >= parseInt(limit || '15', 10)) {
+        console.log(dim(`Showing ${data.items.length} results. Use --limit N to see more.`));
+      }
+      break;
+    }
+
+    case 'projects': {
+      const res = await fetch(`${base}/api/projects`);
+      const raw = await res.json() as { projects?: string[] } | string[];
+      const list = Array.isArray(raw) ? raw : (raw.projects || []);
+      if (!list.length) {
+        console.log('No projects found.');
+        break;
+      }
+      console.log(`\nProjects (${list.length}):\n`);
+      for (const p of list) {
+        console.log(`  ${p}`);
+      }
+      console.log('');
+      break;
+    }
+
+    case 'stats': {
+      const res = await fetch(`${base}/api/stats`);
+      const data = await res.json() as Record<string, unknown>;
+      console.log(`\nWorker Stats:\n`);
+      printObject(data, 1);
+      console.log('');
+      break;
+    }
+
+    case 'timeline': {
+      const params = new URLSearchParams();
+      if (positional[0]) params.set('anchor', positional[0]);
+      if (project) params.set('project', project);
+      if (flags.before) params.set('depth_before', flags.before);
+      if (flags.after) params.set('depth_after', flags.after);
+
+      if (!positional[0] && !project) {
+        console.error('Usage: claude-pg-mem timeline [observation-id] --project <name>');
+        console.error('  At least one of observation ID or --project is required.');
+        process.exit(1);
+      }
+
+      const res = await fetch(`${base}/api/timeline?${params}`);
+      const data = await res.json() as { content?: Array<{ text: string }>; observations?: unknown };
+      const results = data.content?.[0]?.text ? JSON.parse(data.content[0].text) : data;
+
+      if (results.observations?.length) {
+        console.log('');
+        for (const obs of results.observations) {
+          const date = new Date(obs.created_at_epoch).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          const typeTag = (obs.type || '').padEnd(10);
+          console.log(`  #${String(obs.id).padEnd(5)} ${date.padEnd(18)} ${typeTag} ${obs.title}`);
+          if (obs.narrative) console.log(`         ${dim(obs.narrative.slice(0, 120))}`);
+          console.log('');
+        }
+      } else {
+        console.log('No timeline entries found.');
+      }
+      break;
+    }
+  }
+}
+
+function dim(text: string): string {
+  return `\x1b[2m${text}\x1b[0m`;
+}
+
+function bold(text: string): string {
+  return `\x1b[1m${text}\x1b[0m`;
+}
+
+function printObject(obj: Record<string, unknown>, indent: number): void {
+  const pad = '  '.repeat(indent);
+  for (const [key, value] of Object.entries(obj)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      console.log(`${pad}${key}:`);
+      printObject(value as Record<string, unknown>, indent + 1);
+    } else {
+      console.log(`${pad}${key}: ${value}`);
+    }
+  }
+}
+
+/**
  * Start the worker service as a daemon
  */
 async function handleStart(): Promise<void> {
@@ -439,6 +674,28 @@ Commands:
   uninstall   Remove Claude Code plugin
   mcp         Start MCP server (stdio mode, for Claude Code)
   hook        Run a hook (called by Claude Code)
+
+Query:
+  search [query]             Search observations (semantic + keyword)
+    --project, -p <name>       Filter by project
+    --limit, -n <count>        Max results (default 20)
+    --type <type>              Filter: observations, sessions, prompts
+    --obs-type <types>         Filter: bugfix,feature,discovery,decision,change
+    --since <date>             Start date (ISO or epoch)
+    --until <date>             End date (ISO or epoch)
+    --order <order>            Sort: date_desc, date_asc, relevance
+
+  recent                     Show recent observations
+    --project, -p <name>       Filter by project
+    --limit, -n <count>        Max results (default 15)
+
+  timeline [obs-id]          Show timeline around an observation or project
+    --project, -p <name>       Filter by project
+    --before <n>               Observations before anchor (default 3)
+    --after <n>                Observations after anchor (default 3)
+
+  projects                   List all known projects
+  stats                      Show worker and database statistics
 
 Config:
   config set <key> <value>   Set a configuration value

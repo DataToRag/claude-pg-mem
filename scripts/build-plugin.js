@@ -171,6 +171,18 @@ function syncTo(targetDir, label) {
   console.log(`Auto-installed to ${label}: ${targetDir}`);
 }
 
+// 0. CLI dist path (~/.claude-pg-mem/cli/dist/) — used by `claude-pg-mem` CLI commands
+const cliDistSrc = join(ROOT, 'dist');
+const cliDistDest = join(HOME, '.claude-pg-mem', 'cli', 'dist');
+if (existsSync(cliDistSrc) && existsSync(cliDistDest)) {
+  try {
+    if (realpathSync(cliDistSrc) !== realpathSync(cliDistDest)) {
+      cpSync(cliDistSrc, cliDistDest, { recursive: true });
+      console.log(`Synced CLI dist → ${cliDistDest}`);
+    }
+  } catch { /* dest doesn't exist, skip */ }
+}
+
 // 1. CLI plugin path (~/.claude-pg-mem/cli/plugin/) — used by `claude-pg-mem start`
 syncTo(join(HOME, '.claude-pg-mem', 'cli', 'plugin'), 'CLI path');
 
